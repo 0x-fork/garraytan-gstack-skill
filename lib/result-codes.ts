@@ -10,6 +10,8 @@
  * agent greps the code, never the prose. test/troubleshooting-anchors.test.ts
  * checks every anchor exists; add a row here before printing a new code.
  */
+import { RELEASE_RESULT_CODES } from './result-codes-release';
+
 export interface ResultCode {
   /** Stable `<a id>` in docs/troubleshooting.md. */
   anchor: string;
@@ -381,8 +383,8 @@ export const RESULT_CODES = {
   },
   PREGATE_NO_LANE: {
     anchor: 'pregate-no-lane',
-    summary: 'a touched file maps to no test lane through imports, repo-path literals, the bin/<name> convention or a declaration',
-    fix: 'add a test that names the file, or declare its lane (or an explicit empty lane) under `dependencies` in .gstack/pregate.json',
+    summary: 'a touched source file maps to no test lane through imports, repo-path literals, the bin/<name> convention or a declaration',
+    fix: 'add a test that names the file, or declare its lane (or an explicit empty lane) under `dependencies` in .gstack/pregate.json. Markdown no test depends on is already a docs/no-tests empty lane; other documentation goes in `empty_lanes`',
   },
   PREGATE_LANE_FAILED: {
     anchor: 'pregate-lane-failed',
@@ -765,6 +767,7 @@ export const RESULT_CODES = {
     summary: 'unexpected helper failure; the line names the error class and its first stack frame',
     fix: 'rerun once; if it repeats, report the printed frame to the gstack maintainers',
   },
+  ...RELEASE_RESULT_CODES,
 } as const satisfies Record<string, ResultCode>;
 
 export type ResultCodeName = keyof typeof RESULT_CODES;
