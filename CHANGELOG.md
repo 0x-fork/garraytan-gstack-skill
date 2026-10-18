@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.91.134.0] - 2026-10-18
+
+**The paid PR gate now starts only after a PR head's free tests pass and the PR has been quiet for 10 minutes, and a head whose own diff already passed the gate reuses that verdict instead of paying again.** Re-measured over Oct 3 to 17 (505 runs, $21,449) with GSTA-47's scripts: the readiness wait alone would have saved $2,986 (about $1,380 a week), and verdict reuse up to $601 more (restamp-only $97, main moved $504). Together that is up to $3,587, about $1,660 a week; how much of the main-moved share survives the selection check is between $146 and $390 of the $601 by approximation. The same heads still get the same selection and verdict rules; only the start time moves. The PR receipt store, which never restored once, now does.
+
+### Changed
+- **Readiness-gated dispatch (R1).** The `readiness` job in `evals.yml` replaces the 90-second push-burst debounce. It sleeps out the quiet window (repository variable `EVALS_QUIET_MINUTES`, default 10; `evals-no-debounce` sets it to 0), then waits for Free Tests to pass on the same head SHA, for up to 80 minutes. Free Tests red on the head fails the run with no paid work. A newer push still cancels the run. Dispatches never wait, and Version Gate is not an input, so a stamp push always gets its gate.
+- **The receipt store restores.** `slices-report` now runs on a GitHub-hosted runner like `recover-receipts`. On Ubicloud its `actions/cache` save went to Ubicloud's transparent cache, which the GitHub-hosted restore never sees: GitHub's cache held no `eval-input` entry at all, and #3253's restamp gate restored nothing 3 minutes after its green run saved 56 receipts.
+
+### Added
+- **Paid-gate verdict reuse (R2a restamp-only, R2 main moved), a gate edit.** A PR head reuses the newest executed gate's GREEN verdict only when every newer run of the PR provably ran no paid slice, the gate had reconcile exit 0 and no manually accepted case, this head's own plan has the same selection fingerprint, and either (R2a) the base is unchanged and the tree receipt prints `TREE: same-modulo-stamps` with only VERSION, package.json, CHANGELOG.md or the agents digest differing, or (R2) main moved and the PR's own diff from its merge-base, stamp files excluded, is byte-identical. Base-ref code proposes the reuse (`scripts/gate-reuse.ts find`), the planner confirms the selection, no slice runs, and the PR comment says `PASS (reused: restamp-only, R2a)` or `PASS (reused: main moved, R2)` with the reused run, its head, why, and the receipt digest or own-diff signature. Free Tests and every other check still run on the new head. Anything else (a changed own diff, a non-stamp byte, a newer red or partial run, a missing binding, receipt or merge-base, `evals-fresh`) runs the full gate.
+
+### Fixed
+- **The tree receipt no longer drops diff lines that start with `--` or `++`.** Its unified-diff parser treated `---`/`+++` inside a hunk as file headers, so a release-output line beginning `++` or `--` could pass as a stamp. It now reads headers only before a file's first hunk, and a file mode change is never a stamp.
+- **`autoplan-guard-pty` no longer stalls at the phase boundary.** Its scripted actor (haiku) published Phase 1, printed "Phase 1 complete." and ended its turn, so the case idled to its 480 s deadline with 2 of 4 guarded allows. This is the 489 s red seen on #3190, #3258, #3260 and this PR's stamped gate (run 39099195754). The script now runs steps 1 to 11 in one continuous run, and says the Phase 1 line is a boundary, not the end. The publication and the Phase 2 entry stay in separate messages. The case also stops waiting as soon as the actor ends its turn there, and names the cause `PHASE_BOUNDARY_STOP`.
+
+### If you…
+- **…want a restamp to reuse its gate:** put the CHANGELOG entry in the gated push (under `## [Unreleased]` or the tentative version), so the stamp only re-heads it.
+- **…want a main merge to reuse its gate:** merge or rebase without touching the PR's own files; if main changed a file your PR also changes, the full gate runs.
+- **…see "Free Tests run N concluded failure" on E2E Evals:** fix and push, or re-run Free Tests and then re-run E2E Evals.
+
 ## [1.91.133.0] - 2026-10-18
 
 **A lane on a small machine no longer reports done while its pregate test tier still waits on a remote run.** The coordinator contract every lane inherits (autoplan reviewer prompts, `gstack-autoplan contract`, /spec's gate-and-file section) now says a lane is done only when `gstack-pregate run --allow-repo-commands` passes, and that a `requires-remote` obligation needs `--stage tests --remote --spend-cap <cap>`.
