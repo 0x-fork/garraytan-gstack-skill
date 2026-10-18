@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.91.131.0] - 2026-10-18
+
+**`gstack-pregate` finds the tests for Python files, and a missing `node_modules` no longer reads as "stale generated files".** In a Python repo, the `lanes` check failed almost every touched `.py` file with `PREGATE_NO_LANE`, because the import graph only parsed JavaScript and TypeScript. In a FastAPI service with about 1,500 non-test modules, Scott Gigante's change (#3201) cut the unmapped count from 1,473 to 780, and most of the rest are migrations and scripts no import reaches. Separately, a fresh checkout without `node_modules` made the pre-gate report `REGEN_STALE` and suggest rerunning the generator, which sent people the wrong way.
+
+### Added
+- **Python import edges in `lanes`** (thanks @scottgigante-hubflow, #3201). `import a.b`, `from a.b import c`, parenthesised lists and relative `from . import x` resolve from the repository root to `a/b.py` or `a/b/__init__.py`, plus the package `__init__.py` files Python runs on the way in. Stdlib and site-packages imports add nothing. In test files, a dotted `mock.patch` target such as `'pkg.mod.Class.method'` maps to its module.
+- **`REGEN_DEPS_MISSING`.** When a regen command exits 0 with different outputs, `package.json` declares dependencies and `node_modules` is missing, `gstack-regen check` and the pre-gate say "dependencies missing (no node_modules); run bun install, then rerun the check" instead of `REGEN_STALE`. The install command follows the lockfile. The pre-gate check is `incomplete`, never `pass`.
+
+### Fixed
+- **The Python scanner stays linear on hostile input and does not drop tests.** Review found several problems before landing, all fixed:
+  - Long runs of dots or spaces after `from` no longer backtrack quadratically.
+  - Deep dotted names stay linear, and real deep modules still map.
+  - An escaped triple quote no longer swallows the imports after it.
+  - A literal that names a repo file still gets its `mock.patch` reading.
+  - A package and a same-named module both map.
+  - Imports after `;` or `:` count.
+
+### If you…
+- **…run `gstack-pregate` in a Python repo:** touched modules now select the pytest files that import them. `conftest.py`, `src/` layouts and `importlib` calls still need `.gstack/pregate.json` `dependencies` declarations.
+- **…see `REGEN_DEPS_MISSING`:** run the printed install command, then rerun the check.
+
 ## [1.91.130.0] - 2026-10-18
 
 **Every PR plan now shows what a tighter, exercised-path case map would run, without changing what actually runs.** Today a change to a bin or lib file reaches almost every gate case, because selection follows every mention of the file. The exercised-path map counts only what a case really executes: its touchfiles, its test's imports, the shell its skill runs, and the bins its recorded trials invoked. It runs in shadow mode. Replayed over every PR run that had a gate red between 2026-10-07 and 2026-10-17 (37 runs, 47 failed gate cases), it keeps all 47: `bun run test:exercised-map --replay`.
