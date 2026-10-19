@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.91.157.0] - 2026-10-19
+
+**Claude SKILL.md files no longer carry a "When to invoke" body section, which saves about 20 KB across 56 skills.** Claude Code reads a skill's body only after the skill is invoked, so routing prose there never routed anything. Routing still comes from the catalog description and the CLAUDE.md routing block, and voice triggers move into the root router's routing block. From #3129 by @thanhnguyentung95.
+
+### Changed
+- **Catalog trim (`scripts/gen-skill-docs.ts`):** the Claude render keeps the one-line catalog description and no longer inserts the routing and voice-trigger prose into the body. `--catalog-mode=full` and the other hosts are unchanged: they keep the full description.
+- **Voice triggers in the root router:** a new `{{VOICE_TRIGGER_ROUTING}}` resolver (`scripts/resolvers/voice-triggers.ts`) adds one `- Voice trigger "…" → invoke /<skill>` line per skill to the root `SKILL.md` routing block, Claude only. That's 21 lines, and the root router's eager ceiling rises from 4289 to 4821 tokens.
+- **Context budget:** 54 per-skill eager ceilings go down (net −5,139 tokens). The `claude/design-review` size pin drops by 437 chars, and the claude ship golden is refreshed.
+- **Gate integrity:** the tests that pinned the removed section now assert its absence, or check the template description instead:
+  - `test/catalog-trim.test.ts` (the three `buildWhenToInvokeSection` tests go with the function);
+  - `test/catalog-mode-full.test.ts` and `test/cso-preserved.test.ts`;
+  - `test/gen-skill-docs.test.ts` (the benchmark routing and CSO voice tests read the template);
+  - `test/skill-validation.test.ts` (trigger and proactive phrases are checked in `SKILL.md.tmpl`);
+  - `test/helpers/parity-harness.ts` (no `## When to invoke` heading required);
+  - `test/helpers/skill-fixture.ts` and `test/skill-e2e-retro.test.ts` (the section is dropped from the review, review-army and retro E2E section lists). `scripts/harness-version.json` records the `skill-fixture.ts` change as non-behavioral: `HARNESS_VERSION` stays 6, and the regenerated SKILL.md bytes already start those cases' new series.
+  - `test/helpers/manual-judge-review-fixture.ts` puts the removed section back when it rebuilds the historical cookie-workflow approval, so the approved prompt hash and line range still match. The approval itself is unchanged.
+
+  One new free test checks that the root router routes every voice trigger, and it skips the `connect-chrome` alias symlink. No threshold, trial count, case kind or judge changed. No context-budget ceiling rose except the root router's.
+
 ## [1.91.156.0] - 2026-10-19
 
 **The weekly marathon's office-hours case can run its review formatter again, and its validator now checks cap fixes the way the formatter does.** Both defects came from #3164 and were in the test, not the skill. The marathon fixture copied `bin/gstack-office-hours-review` with a hand-kept list of two library files; #3164 added a third import (`lib/spec-review-cap.ts`), so every formatter command in the fixture failed at module load, the agent correctly declared the review UNREVIEWED, and the case went red in marathon run 39032308051 (#3246). With the module restored, a focused rerun showed the second defect: when the review stops at the round cap and the agent applies the remaining blocking fixes with `--fixes`, the formatter records them as verified, but the test never gave the validator that list, so it expected "fixes unconfirmed" and rejected a correct report.
