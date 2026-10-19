@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.91.158.0] - 2026-10-19
+
+**`gstack-config set plan_mode_preamble off` leaves the plan-mode preamble out of every installed skill, for people who never use plan mode.** The "Plan Mode Safe Operations" and "Skill Invocation During Plan Mode" sections add about 1.6 KB to each of 50 Claude skills. With the key off, the next `./setup` renders every host's skills with `gen-skill-docs --plan-mode=off`, and the default Claude install serves that render instead of the committed files. The default is on, and with it on every render and the committed SKILL.md files are byte-for-byte unchanged.
+
+### Added
+- **`gen-skill-docs --plan-mode=off`** drops the two sections at generation time. Commands marked "PLAN MODE EXCEPTION — ALWAYS RUN" keep their marker. Hosts whose capabilities declare no plan mode already render the sections empty, so in practice the flag matters for Claude, Copilot and OpenCode. Fixes #3168. From #3213 by @xingzihai, finished with the config wiring.
+- **The `plan_mode_preamble` config key** (`on` | `off`, default `on`). It is a closed domain like `explain_level`: an unknown value warns and stores `on`. Setting it outside `./setup` says it applies on the next setup run and prints the `./setup --refresh-registered` command that applies it now.
+- **Every installed render carries the choice:** all 16 `gen:skill-docs` call sites in `setup`, the Claude render helper, `gstack-config gbrain-refresh`, and the router that `gstack-relink` re-renders in place (as it already does for `disabled_skills`). When setup has to build, `scripts/build.sh` renders Factory, OpenCode, Cursor, Copilot and Antigravity without the flag, so with the key off setup renders those hosts again afterwards.
+- **The default Claude install gets a render when the key is off.** Without a working gbrain (absent, or the detector failed), `gstack_claude_render_action` returns `plain` instead of serving the committed files; with gbrain the brain-aware render already runs and now carries the flag too. The activation record (`~/.gstack/render/claude.overlay`) gains `plan_mode=off`. Turning the key back on removes that render on the next setup when gbrain is absent or its detector fails (a failed detector otherwise keeps a render), and re-renders the brain-aware render with the sections when gbrain is present. A failed render with the key off keeps the previous render. Records written with the key on are unchanged.
+
+### Fixed
+- **`gstack-relink` refreshes the `_gstack-command` router alias after it re-renders the router.** It used to copy the router before the re-render, so the alias kept the previous router (with `disabled_skills`, the full skill list) until the next relink.
+
+### Changed
+- **Gate integrity:** new tests `test/plan-mode-off-build.test.ts` (from #3213, unchanged), `test/plan-mode-off-generation.test.ts`, `test/plan-mode-preamble-config.test.ts`, `test/plan-mode-preamble-render.test.ts` and `test/plan-mode-preamble-setup.test.ts`. No existing test was edited, and no threshold, trial count, case kind or judge changed.
+
 ## [1.91.157.0] - 2026-10-19
 
 **Claude SKILL.md files no longer carry a "When to invoke" body section, which saves about 20 KB across 56 skills.** Claude Code reads a skill's body only after the skill is invoked, so routing prose there never routed anything. Routing still comes from the catalog description and the CLAUDE.md routing block, and voice triggers move into the root router's routing block. From #3129 by @thanhnguyentung95.
