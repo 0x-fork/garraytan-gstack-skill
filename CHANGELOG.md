@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.91.155.0] - 2026-10-19
+
+**A busy page no longer locks up the browse daemon.** When one tab kept its main thread busy (a heavy dev bundle, a big grid render, a runaway script), every `browse` command, including `status`, `tabs`, `tab <id>`, `closetab` and `stop`, failed with "Daemon busy" after about 9.6 s, and the only way out was `--force-restart`, which threw away cookies, tabs and logins. Fixes #3247. From #3250 by @AndreIntelas.
+
+### Fixed
+- **`/health` `status` reports daemon liveness (Chromium connected)**, and the active tab's responsiveness is reported separately as `activeTab: {id, responsive}`. The CLI no longer gates every command on a 2 s `page.evaluate` race against the active tab.
+- **`tabs` and `state save` bound their per-tab reads**, so a stuck tab shows as `(not responding)` instead of hanging the command, and one pending probe is shared per stuck tab rather than one per poll. A busy tab keeps its last good storage in saved state.
+- **A command that really needs the stuck tab times out with an error naming that tab** and how to get out (switch tabs or close it). The CLI's timeout branch now matches Bun's `TimeoutError`; the old `AbortError` check never fired.
+
+### Changed
+- **Gate integrity:** `browse/test/terminal-agent.test.ts` adds `activeTab` to the exact `/health` keys and updates its stub for the now-synchronous `isHealthy` and the new `probeActiveTab`; its no-token assertions are unchanged. `browse/test/busy-active-tab.test.ts` and `browse/test/command-timeout-report.test.ts` are new. No threshold, trial count or case kind changed.
 ## [1.91.154.0] - 2026-10-19
 
 **/cso can verify Rails repairs in a read-only checkout, its retained Git history no longer brings back credential files the snapshot leaves out, a repair whose external assertions fail is now reported as `ASSERTION_FAILED` instead of a misleading `INCOMPATIBLE_INPUT`, and a security assertion can accept several safe rejection statuses while still requiring the secret to be absent.** The helper keeps `.env`, `master.key`, keys and agent configuration out of the readable tree, but `history.txt` captured `git log -p` in full, so a committed `.env` came back through its diff whenever the value wasn't credential-shaped enough for the redactor. Paid qualification run 39186328569 caught this when the private corpus's planted `.env` value showed up in the judge's helper state.
