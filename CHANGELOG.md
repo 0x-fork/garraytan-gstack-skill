@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.91.159.0] - 2026-10-19
+
+**Security: the repository gstack runs in can no longer configure gstack's own programs.** Bun loads `.env`, `.env.local` and `.env.<NODE_ENV>` from the directory it starts in. It also runs any `preload` that a `bunfig.toml` there names, before the program's first line. gstack runs inside the repository it audits, so a committed or branch `.env` could set `GSTACK_STATE_ROOT`, `GSTACK_PROJECT_SLUG`, `GSTACK_CLAUDE_BIN` (an attacker-chosen binary then ran as "claude"), `GSTACK_SPEND_CAP_USD` or a provider base URL for every gstack bin, hook and skill step. A `bunfig.toml` preload ran arbitrary code in all of them. Every Bun that gstack starts now passes `--no-env-file` and an empty `--config`. Your shell environment works exactly as before. Found in review by GSTA-54.
+
+### Security
+- **Every bun entry point starts isolated:** all 123 bun shebangs are now `#!/usr/bin/env -S bun --no-env-file --config=/dev/null`. `bun run <file>` ignores the shebang, so the callers carry the flags too: skill templates, generated skill docs, resolvers, hook wrappers, `setup` and the bash bins pass `bun --no-env-file --config=/dev/null` for every `run`, `-e`, `-p` and script path.
+- **TypeScript spawns use `bunIsolationArgs()`** from `lib/bun-isolation.ts`, which follows browse's `emptyBunConfig()`. This covers `scriptInvocation` (how TypeScript launches gstack's own bins), restamp, qa-deadline, the timeline hook's repair child, gbrain sync's ingest child, the agents-digest regen and the Claude Code migration. Native Windows has no `/dev/null`, so there the helper passes a zero-byte bunfig in a fixed directory under the per-user temp root. It is never removed, because the timeline hook's detached repair child reads it after the hook exits. Under Git Bash, MSYS rewrites the shebang's `/dev/null` to `nul`, which Bun 1.4.2 reads as an empty config. A windows-latest run verified both.
+- **Compiled builds:** `build:gates` and `scripts/build-app.sh` now pass `--no-compile-autoload-dotenv --no-compile-autoload-bunfig`, as `scripts/build.sh` already did. Without them, compiled binaries load both files.
+- **A ratchet and regressions:**
+  - `test/bun-entry-isolation.test.ts` fails on any bun shebang, shell or skill caller, TypeScript spawn or `build --compile` that drops the flags.
+  - `test/bun-dotenv-isolation.test.ts` runs the real bins in a fixture repo with a hostile `.env`, `.env.local` and `bunfig.toml`. The state root, slug, claude binary and pregate spend cap still come from the shell.
+  - `test/bun-isolation-launch.test.ts` runs the shebang, bash and TypeScript launch forms on every free lane, Windows included.
+
+### Changed
+- **`gstack-evidence run` no longer scrubs dotenv values from the child environment,** and `GSTACK_EVIDENCE_KEEP_DOTENV` is gone. Bun no longer loads those values into the wrapper, so the child sees your shell's environment, as it would if you ran the command by hand. The old value-equality scrub (#2652, @namtrok) also dropped shell-exported variables whose value matched the file.
+- **Raised SKILL.md size pins:** 80 pins in `test/fixtures/skill-md-size-allowlist.json` grew by 33 to 330 characters each, from the isolation flags alone (8,253 characters in total).
+- **Directly executed `./scripts/*.ts` files no longer read gstack's own `.env`.** `bun run <script>` and the package scripts (`bun run test`, `bun run eval:bg:pr`) still load it.
+
+### If you…
+- **…add a bin or a hook:** start it with the isolated shebang, and pass `bun --no-env-file --config=/dev/null` (or `bunIsolationArgs()` in TypeScript) wherever you start Bun. If you don't, the ratchet names the line.
+- **…relied on a repo `.env` to configure gstack:** export the variable in your shell or set it with `gstack-config`.
+
 ## [1.91.158.0] - 2026-10-19
 
 **`gstack-config set plan_mode_preamble off` leaves the plan-mode preamble out of every installed skill, for people who never use plan mode.** The "Plan Mode Safe Operations" and "Skill Invocation During Plan Mode" sections add about 1.6 KB to each of 50 Claude skills. With the key off, the next `./setup` renders every host's skills with `gen-skill-docs --plan-mode=off`, and the default Claude install serves that render instead of the committed files. The default is on, and with it on every render and the committed SKILL.md files are byte-for-byte unchanged.
