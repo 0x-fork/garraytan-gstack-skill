@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.91.176.0] - 2026-10-21
+
+**A qualified /cso runtime set can be released again after the S1 shebang change.** The release contract fingerprints every source byte compiled into a runtime image (`preparationSha256`). S1 (#3312) changed only line 1 of the two compiled helpers, `lib/cso/verifier.ts` and `lib/cso/preparation-container.ts`, from `#!/usr/bin/env bun` to the isolated shebang. That line is embedded in the compiled binary as an unused string and never runs in the image, but it moved the fingerprint. Qualify run 39535948607 therefore refused the run-5 statements, staged at 133cb36, with `STALE_RUNTIME_QUALIFICATION: preparationSha256`. Garry chose this narrow rule change over a re-stage and a fresh paid qualification (2026-10-21, option 2).
+
+### Changed
+- **`scripts/cso-requalification.ts`**: `preparationSha256` hashes a compiled helper entrypoint's leading `#!` line as absent. Every other byte of the helpers, and every byte of every other image source including its shebang lines, still counts. 133cb36 and main both measure `c721b585…`.
+- **`scripts/cso-runtime-promotion.ts`** (`releaseCandidate`): when the staging record's `preparationSha256` differs from the checkout's, the release contract re-measures it at the staged commit from git history. The record must match that commit under the current rule or the earlier one, which also hashed the shebangs; otherwise it fails with `REQUALIFICATION_TRIGGERS_MISMATCH`. The current-rule value is compared and recorded, so both sides use the same rule.
+- **`cso-runtime-qualification.yml`, `cso-runtime-promote.yml`**: check out full history so the staged commit is readable.
+
+### Gate integrity
+- Gate edit, a narrowing with Garry's approval: the release contract's `preparationSha256` comparison ignores the leading `#!` line of the two compiled helpers on both sides. Nothing else gets a pass. `test/cso-runtime-promotion.test.ts` runs the contract on the real 133cb36 record (`b069f7ef…`) against a main tree. These still fail with `STALE_RUNTIME_QUALIFICATION`: a line-2 edit to either helper, an image Dockerfile edit, and a shebang edit to the image `entrypoint`. A record that matches neither rule at the staged commit fails with `REQUALIFICATION_TRIGGERS_MISMATCH`.
+
 ## [1.91.175.0] - 2026-10-21
 
 **A free-suite flake now keeps the assertion that failed.** Four free-test flakes in the flaky ledger (plan-seed-submission, native-paste, qa-only preparation-late and the gstack-upgrade fresh-shell positive control) could not be diagnosed: each failed once on a Ubicloud or remote-pregate run, passed on the serial retry, and its log died with the machine that pulled it. The runner's console printed only the failing test's name, and the flake ledger recorded only the file.
