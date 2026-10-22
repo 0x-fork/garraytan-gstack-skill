@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.91.179.0] - 2026-10-22
+
+**docsync-fault-interface fits its budgets under load again.** On 2026-10-18 it timed out under load on a Ubicloud full run. Its nested 36-case suite spent most of its time starting processes: each fault actor spawn loaded about 36 ms of imports (an empty bun takes 5.5 ms), inspect repeated Git reads, and the whole nested run sat under one 120 s outer test. With real Git on 4 cores, inner cases now take a 0.70 s median (max 1.25 s) unloaded, against 1.07 s before. Under 8 busy loops the max is 3.44 s, inside bun's default 5 s; before, cases reached 4.45 s. The worst outer test went from about 100 s of its 120 s cap to 33 s. No timeout, budget, retry, assertion or case changed.
+
+### Fixed
+- **`test/helpers/docsync-fault-actor.ts`**: imports only light helper modules, hashes with `Bun.CryptoHasher` instead of loading `node:crypto`, and loads the redaction engine only on the snapshot-failure path. inspect makes 8 Git calls instead of 11, and the snapshot base check reuses the `--base` it just passed. Each actor spawn now costs 15–19 ms.
+- **`test/helpers/docsync-repo.ts`, `test/helpers/docsync-interface.ts`** (new): the fixture's Git and file helpers and `docsNativeInterface` moved out of the fixture and observer modules, so the actor stops loading the eval store and the QA observer. `docsync-fixture.ts` and `docsync-observer.ts` re-export them, so no importer changed. The fixture writes its Git identity with one append to `.git/config` instead of three `git config` calls.
+- **`bin/gstack-docs-candidate`**: snapshot lists `ls-files` once instead of twice and hashes with `Bun.CryptoHasher`. A snapshot spawn went from 68 ms to 46 ms, and the record it writes is byte-identical.
+- **`test/docsync-fault-interface.test.ts`**: the nested callback run is split into three outer tests by test-name pattern (10, 12 and 14 cases). Each part asserts its exact pass count, its exact filtered-out count and `0 fail`, so all 36 cases still run and the patterns are disjoint.
+
 ## [1.91.178.0] - 2026-10-22
 
 **A /qa run no longer gets a hint that another report root could change its verdict.** Train gate 39646086155 failed qa-functional-webhook-fix once, and gate 39166935531 failed qa-functional-cli-fix the same way on 2026-10-18. Both times the agent ran `gstack-qa-evidence materialize`, read a fail verdict that ended "this verdict is final for this report root", and its very next call wrote a stray placeholder file in the fixture's parent directory (`qa-reports-placeholder-unused`, `qa-Q3vLqZ-placeholder`) before writing `report.md`. Each agent then reported the stray file itself. The out-of-fixture write detector was right both times and is unchanged.
