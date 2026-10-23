@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.91.182.0] - 2026-10-23
+
+**gstack installs on a project that pins Bun 1.4.4 again.** gbrain master moved its CI to Bun 1.4.4 (gbrain #7374, the Brotli CVE-2026-111497 fix), and gstack's Capy installer then stopped every gbrain session with `RUNTIME_PIN_CONFLICT` ("verified archives: 1.4.2 1.4.3 … pins exactly 1.4.4"), because it installs only Bun archives whose SHA-256 it carries. It now carries 1.4.4, so the same run installs the pinned Bun and ends `gstack: ok`.
+
+### Fixed
+- **`bin/gstack-bun-version.sh`**: `GSTACK_BUN_VERIFIED` is now 1.4.2 1.4.3 1.4.4, with 1.4.4's checksums for linux-x64, linux-x64-baseline and linux-aarch64, the targets 1.4.3 covers. They come from the release's `SHASUMS256.txt.asc`, whose clearsigned signature verifies against Bun's release key F3DCC08A8572C0749B3E18888EAB4D40A7B22B59 (Robobun, the key oven-sh/bun's own Dockerfiles assert), and each archive was downloaded and hashed to the same value. The 1.4.2 and 1.4.3 entries are unchanged and verify the same way. gstack's own minimum (1.4.2), install default (1.4.3) and CI pins do not move.
+- **`test/gstack-capy-install.test.ts`**: a gbrain-like repo whose CI pins only 1.4.4 refuses `~/.bun` 1.4.3 and installs the 1.4.4 archive. **`test/bun-version-drift.test.ts`**: every verified version must carry a checksum for each installer target. The existing "verified archives" text assertions list 1.4.4.
+
 ## [1.91.181.0] - 2026-10-23
 
 **/cso can run its contained runtime checks.** Before this release the runtime catalog qualified nothing, so /cso always fell back to static assessment. It now qualifies ten pinned images: Node 24.4.0, Bun 1.3.10, Python 3.13.4 with uv 0.8.0, Rails on Ruby 3.4.4, and PostgreSQL 17.2, each for linux/amd64 and linux/arm64. With Docker installed, comprehensive /cso boots the target app inside the matching image and tests findings and repairs against it. The images passed the private evaluator's release qualification (run-5 statements, re-delivered under Garry's approval). The ingress then checked them in qualify run 39674065531 at 514fbfd.
