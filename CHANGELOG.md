@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.91.198.0] - 2026-10-25
+
+**A second-opinion reviewer that says "not ready" is no longer reported as clean.** When the outside reviewer (Codex or Claude Code) ended its reply with `Verdict: not ready` but listed only advisory P2 or P3 findings, `lib/outside-review-result.ts` printed `VERDICT: clean` and exited 0, so /ship and /codex carried on as if the reviewer had approved. The not-ready check only ran when no severity parsed at all, so a parsed P2 or P3 switched it off (#3329). Ported from #3364 by @mvanhorn.
+
+### Fixed
+- **`lib/outside-review-result.ts`**: when the reply's last recognized `Verdict:` line says `not ready`, the result is `findings` (exit 3) whatever severities parsed, and `FINDINGS:` still names the highest one. Advisory P2/P3 findings with a ready verdict, or with no verdict, stay `clean`. A `Verdict:` line quoted in a code fence or inline code still does not count, and the proposal and spec gates ignore it as before.
+- **`docs/troubleshooting.md`**: the "Every review gate" rule under *How the verdict is read from a review* now says a not-ready reply blocks even when P2 or P3 parsed.
+
+### Tests
+- `test/outside-review-unparsed-severity.test.ts` covers the issue's reply (numbered bold P2 plus P3, then `Verdict: not ready`) on the execution, structured and review gates, P3-only and unlabeled not-ready replies, the last verdict winning in both directions, bold, bulleted and heading verdict lines, and an unparsed label beside a parsed P2. Five of its tests fail on main's classifier and pass with the fix. Controls that stay `clean`: P2/P3 with `Verdict: ready` or no verdict, a not-ready verdict inside a code fence or inline code, and `ready-one-p3.txt`. Missing review markers, a failed execution, and the proposal and spec gates keep their old results.
+
+### Gate integrity
+- One gate edit, and it strengthens the gate: the pinned `bare-dash-p2.txt` fixture (two P2 lines, then `Verdict: not ready (2 P2)`) moves from `VERDICT: clean`, exit 0 to `VERDICT: findings`, exit 3. Garry approved this reversal on 2026-10-24. No threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.197.0] - 2026-10-25
 
 **Pregate gives touched Rust files a test lane, and runs a nested pnpm or vitest package with its own runner (#3344).** In a mixed Cargo and JavaScript repo, every touched `.rs` file failed `lanes` with "has no test lane", so /ship could not get a receipt, and a nested package's vitest tests ran under `bun test` from the repo root (about 98 false failures in the reporter's repo). Ported from #3346 by vilano93, whose two commits carry the feature; our commits on top close four findings from a security-focused review of the port and make the new fixtures hermetic.
