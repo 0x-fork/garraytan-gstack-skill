@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.91.207.0] - 2026-10-25
+
+**Per-repository session counts include sessions from removed Claude Code worktrees (ported from #3334 by @Shweta-Mishra-ai).** Claude Code creates worktrees at `<repo>/.claude/worktrees/<name>` and removes them once their branch merges, but their session history stays. `gstack-global-discover` resolved each session's recorded directory with git, so a removed worktree resolved to nothing: its sessions counted in the tool total and in no repository. Reproduced on main: 2 sessions in a repo plus 3 in a removed worktree gave `total_sessions 5` but 2 for the repo.
+
+### Fixed
+- **`bin/gstack-global-discover.ts`**: when a session's directory no longer exists and sits inside `<repo>/.claude/worktrees/<name>` (or a subdirectory of it), the session counts with `<repo>`. Any other missing directory, and a worktree whose repository is gone too, still count in no repository. A live worktree keeps its own path, as before.
+
+### Tests
+- `test/global-discover.test.ts` gains six end-to-end cases built with real `git worktree add` and `remove` (removed worktree, a subdirectory of one, a repo with no remote, plus the live-worktree, gone-repo and plain-missing-directory controls) and table tests for the path matcher. The three positive cases and the matcher tests fail on main.
+
 ## [1.91.206.0] - 2026-10-25
 
 **A repo that keeps `.gstack/` out of git can give pregate a policy, and name the CI lanes a local run satisfies (#3286).** On a shared repo where gstack is one contributor's tool, pregate fell back to defaults, so every platform lane the machine could not run (an `ubuntu-latest` suite on a Mac, say) became a `requires-remote` obligation that never cleared, even when that suite runs the same here. Ported from #3286 by arlophoenix, whose 13 commits carry the feature (merged with their history kept); our commits on top close two findings from a security-focused review of the port.
