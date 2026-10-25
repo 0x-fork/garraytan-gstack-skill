@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.91.212.0] - 2026-10-25
+
+**/careful no longer asks about words inside a commit message (#1060; ported from #3221 by @Bhumika-1432006).** The careful hook matched its MEDIUM patterns against the whole command, so `git commit -m "fix: prevent drop table in migration"` asked for approval as an SQL DROP. The hook now masks git commit's own literal message before those checks, including the `-m "$(cat <<'EOF' … EOF
+)"` form agents use most. Our commits on top of the contributor's scanner fix four problems found in review: the inline awk program made the whole hook a bash syntax error on bash 3.2 (macOS `/bin/bash`), so every Bash call failed the hook there; a newline after the message was dropped, so `-m x⏎truncate …` stopped asking; any `-m '…'` after a commit was masked, including another command's argument; and the heredoc form was never masked.
+
+### Fixed
+- **`careful/bin/mask-commit-message.awk`** (new, from the contributor's scanner): reads the command as one string and keeps its newlines. It splits at unquoted `;` `&` `|` `(` `)` and newlines (a redirection's `&` does not split) and masks `-m`, `-am`, `--message` and `--message=` only in a segment whose first word is `git` with a `commit` word after it. Single-quoted messages, double-quoted messages without `$`, backtick or backslash, and a double-quoted `$(cat <<'DELIM' … DELIM )` with a quoted delimiter are masked. Quotes, backslashes and comments are parsed as bash does. The command is left unmasked when it contains any other command, parameter or process substitution, a backtick, `$'…'`, a heredoc, an unterminated quote, or a pipe after a masked message (git prints the message on stdout).
+- **`careful/bin/check-careful.sh`**: runs the program with `awk -f` from the hook's own directory, so bash 3.2 parses the hook again. A missing program or an awk error leaves the command unmasked. The HIGH deny tier, the PowerShell table and the obfuscation tripwire still read the unmasked command.
+
+### Tests
+- `test/hook-scripts.test.ts` keeps the contributor's 10 cases and adds 31. Masked (no prompt): every flag form, `git -C repo commit`, `--amend`, multi-line messages and four heredoc spellings (`'EOF'`, `"MSG"`, `<<-` with a tab, a quoted word in the body). Still asking: a command on the next line, a quote that spans a line break, another command's `-m`, `echo git commit -m '…'`, an escaped quote, a backslash-newline, a heredoc with an unquoted delimiter, a substitution that closes the message early, a backtick, `git commit -F - <<'EOF'`, `$'…'`, a pipe after the commit (direct, after `2>&1`, or from a subshell), a process substitution and a parameter expansion. A partial install without the awk file still asks.
+- The same cases pass with mawk and the one-true-awk (`original-awk`, the awk macOS ships). In a `bash:3.2` container the hook as submitted in #3221 exits 2 with `unexpected EOF while looking for matching '"'` on every command; with this change it answers normally.
+
+### Gate integrity
+- One accepted-input change to review, in a safety hook: MEDIUM checks (and custom `careful-patterns.txt` rules) no longer see the masked text of git commit's own literal message. That is a weakening by design, limited to text that bash passes to git as a literal argument. The negative controls listed under Tests still ask. Commands that combine a commit with anything that could execute the message, or that the scanner cannot read with certainty, are checked unmasked, exactly as on main. No threshold, budget, timeout, trial count or case kind changed.
+- Known limit, still a false positive as on main: `git commit -F - <<'EOF'` messages and commits after an environment assignment or `sudo` are not masked.
+
 ## [1.91.211.0] - 2026-10-25
 
 **`gstack-diff-scope` sees Python tests and nested test directories (#3335).** A branch that changed `components/orch/services/shared/tests/test_native_store_custody.py` reported `SCOPE_TESTS=false`, because the Tests rule only knew `*.test.*`-style suffixes and `test/`, `tests/`, `spec/` and `__tests__/` at the repository root. /ship and /review use that flag to route the testing specialist, so a backend change whose tests follow pytest's `test_*.py` convention skipped it. The test-bootstrap resolver already counted these files, so the two detectors disagreed.
