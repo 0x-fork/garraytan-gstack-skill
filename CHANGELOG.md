@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.91.210.0] - 2026-10-25
+
+**/autoplan works when Claude Code's project directory is a subfolder of the repository (#3296).** When the git root sits above the project (for example the root is `$HOME` and the session starts in `$HOME/projects/app`), a worktree session's journal lives in `.claude/worktrees/<name>` under that subfolder. The publication guard only looked for `<project dir>/.git/worktrees`, found nothing, and denied every phase Read with `foreign_cwd`, so the reporter had to restart the session from the repository root.
+
+### Fixed
+- **`autoplan/bin/phase-publication-hook.ts`**: `linkedWorktrees` walks up from the project directory to the first `.git` and reads that repository's worktree registry. A `.git` file (the project is itself a linked worktree or a submodule) stops the walk with no owners, as before. Git's two-way link is still required: the registry entry must name the worktree's `.git` file and that file must name the same entry back. No `git` process is started inside the hook.
+
+### Tests
+- `test/autoplan-publication-hook.test.ts` builds the reporter's layout with real `git worktree add`: a subfolder project directory (and a deeper one) owns the worktree under it, and the root still does. It fails on main. Controls that still get no owners: a nested independent repository (its own `.git` stops the walk), a project directory inside a linked worktree, a registry entry whose worktree names another repository, and a directory with no `.git` above it.
+
+### Gate integrity
+- One accepted-input change to review: from a project directory below the repository root, the guard now accepts the journal of a linked worktree of that same repository, which it already accepted when the project directory was the root. The seven existing `foreign_cwd` refusals in `test/autoplan-publication-guard.test.ts` (no link, one-sided links, another repository, a submodule gitdir, a project that is itself a worktree, a bare repository) still deny. No threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.209.0] - 2026-10-25
 
 **The free test suite no longer rewrites a contributor's global git pre-push hook (#3353).** On a machine with a global `core.hooksPath`, `test/redact-prepush-target.test.ts` and `test/fs-utils.test.ts` ran `gstack-redact install-prepush-hook` with the parent environment. Git resolved the hooks directory to the global one, so the install moved the developer's own `pre-push` to `pre-push.local` and left a managed wrapper pointing into the test checkout, which breaks every later push once that checkout is gone. The same config also failed 4 tests in the target file, 5 in `test/redact-prepush-hook.test.ts` and 1 in `fs-utils`. CI has no global hooks path, so it stayed green.
