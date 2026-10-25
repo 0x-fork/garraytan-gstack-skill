@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.91.206.0] - 2026-10-25
+
+**A repo that keeps `.gstack/` out of git can give pregate a policy, and name the CI lanes a local run satisfies (#3286).** On a shared repo where gstack is one contributor's tool, pregate fell back to defaults, so every platform lane the machine could not run (an `ubuntu-latest` suite on a Mac, say) became a `requires-remote` obligation that never cleared, even when that suite runs the same here. Ported from #3286 by arlophoenix, whose 13 commits carry the feature (merged with their history kept); our commits on top close two findings from a security-focused review of the port.
+
+### Added
+- **`lib/pregate/context.ts`, `lib/pregate/config.ts`** (arlophoenix): when the base branch carries no `.gstack/pregate.json`, `gstack-pregate run` reads `<state root>/projects/<slug>/pregate.json`. Never under `--policy-from head`, never a relative path or one inside the checkout, and never chosen by a checkout's `.env` (the bin ignores it, and a bare `bun gstack-pregate` beside one refuses). An unreadable file, a dangling link on its path, `sealed` or `price_file` refuses with `PREGATE_CONFIG_INVALID`; a base copy git cannot read refuses with `POLICY_SOURCE_UNAVAILABLE` unless `git ls-tree` confirms it is absent.
+- **`local`** (arlophoenix): `<workflow.yml>/<job>` lanes a local run satisfies run here instead of becoming `requires-remote`. Under 8 cores with a `remote_gate` or remote `test_backend`, the small-machine obligation still stands.
+- **`lib/pregate/index.ts`** (arlophoenix): the record names the user file and its digest, and `verify` goes `PREGATE_STALE` when it is edited, deleted, or appears after a run under the defaults. Fix texts for missing lanes, strays, stalls and `remote_gate` name the active policy file.
+
+### Fixed
+- **`lib/pregate/context.ts`**: a user policy whose path reaches the checkout through any symlink is ignored. Before, only the lexical path and the final target were checked, so a state root linked into the checkout, holding a link back out to another existing policy, let a branch choose a more permissive file without changing its bytes.
+- **`lib/pregate/index.ts`**: `verify` goes `PREGATE_STALE` when a link on the way to the absent user path starts pointing nowhere. A fresh run refuses that state, but verify looked only at the leaf, so an old defaults pass stayed publishable. The loader and verify now share one absence check.
+
+### Tests
+- `test/pregate-user-policy.test.ts` (new, arlophoenix) covers the user file, `local`, the refusals, `.env` isolation and stale receipts. New cases: a link chain through the checkout is refused for both a linked state root and a single in-repo hop, while a direct outside link is still read; and verify goes stale on a dangling parent, with the plain-absent path as the control.
+- `test/pregate-rust.test.ts`: the two cargo-lane cases skipped on Windows carry a `TODO(#3380)` naming the gap.
+
+### Gate integrity
+- No threshold, budget, timeout, trial count, case kind or skip changed. The user file can relax lanes only where the base has no policy at all, and only from outside the repository; the two fixes make that containment stricter.
+- No new dependency, no network call, no workflow change.
+
 ## [1.91.205.0] - 2026-10-25
 
 **/ship's Step 9 can re-review just the fixes after a fixing pass, and a narrowed pass can never be the review that ships (#3339).** Before, every fix cycle reran every specialist and the Red Team over the whole branch. On a large branch each full pass tends to find something new in code earlier passes already read, so the loop often ran to the three-cycle stop without converging. Now the pass after a fixing pass can review only what changed since that pass. One full pass still has to come last: a fix-range record is never CURRENT, and Step 11.5 can't bind it. Garry approved this on 2026-10-24 ("only with a mandatory final full pass").
