@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.91.204.0] - 2026-10-25
+
+**An unattended run is told to end with `GSTACK_RESULT` only when its skill can write that line.** The unattended block `gstack-skill-start` prints told every unattended skill to log choices in `decisions.jsonl`, write a gate list and end with `GSTACK_RESULT: skill=<name> status=gate_pending run=<dir>`. Only `/autoplan` has helpers that write a run directory, so `/ship`, `/review`, `/qa` and the rest were asked to produce files and a result line nothing writes, and a parent that trusted the block would wait for them. `docs/unattended.md` already names which skills write the line and what a parent reads for the others (#3281); the runtime text now says the same thing.
+
+### Fixed
+- **`bin/gstack-skill-start`**: the decision rules in the unattended block are the same for every skill: take the recommended option, leave unrecommended questions, consents, destructive options and the final gate pending, and never approve, publish or push. Only the sentence about the run's record changes by skill. `/autoplan` keeps its run directory, its `decisions.jsonl` rows, the gate list and `GSTACK_RESULT: skill=autoplan status=gate_pending run=<dir>`. `/eval-plan` ends at its spend approval with `GSTACK_RESULT: skill=eval-plan status=gate_pending run=<outdir>`, and the block says no helper writes a `gate.json` for it yet. Every other skill is told it writes no run directory and prints no result line, to stop at its first pending item and list it in its final report, and which record the parent reads: the ship receipt (`gstack-ship-receipt read --pr <n> --json`) for `/ship`, the review-log rows (`gstack-review-read`) for `/review`, the `qa-report-*.md` file for `/qa`, and the skill's own record in `docs/unattended.md` otherwise.
+
+### Tests
+- `test/gstack-skill-start.test.ts` renders the unattended block for `autoplan`, `eval-plan`, `ship`, `review`, `qa` and `investigate`. It checks that each keeps the shared decision rules, that only `autoplan` and `eval-plan` get a result line (with their own skill name, never `<name>`), and that the other four get no result line, gate list, `decisions.jsonl` or `run.json` and name their record. Against the old block it fails, and so does the existing unattended test, which now expects `skill=autoplan`.
+
+### Gate integrity
+- One test expectation changed: the existing unattended test expects `GSTACK_RESULT: skill=autoplan …` instead of the `skill=<name>` placeholder, which is stricter. No threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.203.0] - 2026-10-25
 
 **Asking gstack to fix a failure no longer always opens /investigate (#3157, #3158).** The router sent every bug report straight to the full /investigate workflow, even when the user had named the cause or one look at the failing code showed it. Now the router checks first. When the user names a cause and a narrow fix, it makes one read-only check of the evidence. When that confirms the cause, it makes the fix and runs the focused test. When the cause is unknown, it makes one bounded, read-only triage pass over the supplied evidence and the directly implicated test and code, with no reproduction, hypothesis testing or wider search, and fixes the failure directly only when that pass establishes the root cause. Anything still unclear, including a cause the check contradicts, goes to /investigate before any edit, so the root-cause bar holds. A failing test or stack trace no longer counts as proof of its cause.
