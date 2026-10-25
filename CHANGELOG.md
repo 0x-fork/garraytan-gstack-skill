@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.91.195.0] - 2026-10-25
+
+**Four skill prompts stop contradicting themselves or their code.** dgrant's issues #3347, #3350, #3351 and #3352 each found a skill telling the model something wrong or ambiguous: /office-hours read a master-based repo as "no changes", /plan-design-review named a vision model the design binary no longer uses, /health gave two different GBrain scores for the same readings, and /ios-qa's demo mode claimed to override every other rule in the skill.
+
+### Fixed
+- **`office-hours/SKILL.md.tmpl`** (#3347): Phase 1 runs `git diff origin/HEAD --stat`, the remote's default branch, instead of `git diff origin/main --stat 2>/dev/null`. On a clone whose default branch is `master`, the old command exited 128 with its error hidden, so the model read the empty output as "no changes"; the new one shows the diff, and a repo without `origin/HEAD` now shows its error instead of passing for "no diff". The line is the same length, so office-hours stays at its pinned size on every host (the shared `{{BASE_BRANCH_DETECT}}` block would have added 1,727 chars, past the size-guard pins and the parity skeleton cap).
+- **`plan-design-review/SKILL.md.tmpl`** (#3350): the design binary's `check` command is described as "OpenAI vision" instead of "GPT-4o vision", so the prose no longer pins a model. The binary defaults to gpt-5.5 (`design/src/models.ts`), `GSTACK_DESIGN_MODEL` overrides it, and gpt-4o cannot drive gpt-image-2 at all. The swap is the same length, so the pinned host sizes don't move.
+- **`health/SKILL.md.tmpl`** (#3351): the GBrain score is computed by a `bun -e` snippet from the doctor component (10 for `ok`, 7 for `warnings`, else 0), the queue length and the hours since the last push, like the composite already was. The snippet takes only numeric `<N|null>` inputs, the placeholder form the generated-bash lint already allows. The rubric row's 10/7/4 bands, which disagreed with the weighted formula (doctor ok, queue 50, pushed 2h: 7 by the rubric, 9.1 by the formula) and overlapped (a queue of 3 matched both 10 and 7), now point at that computation. The bands are half-open (<10, <100 lines; <24, <72 hours), and with sync off the doctor component carries the whole score. History records `gbrain` with one decimal.
+- **`ios-qa/SKILL.md.tmpl`** (#3352): "DEMO MODE OVERRIDES ALL OTHER RULES" becomes the narrow rule it meant: in demo mode drive every action through visible UI rather than `POST /state/*` writes, and every other rule in the skill (the device lock, no replay of a lost tap, never hand-editing DebugBridge) still applies.
+
+### Tests
+- `test/qa-health-rubric.test.ts` checks that the GBrain rubric row defers to the computation, then runs the template's own snippet: the issue's two inputs score 9.1 and 8.5, the band edges (9/10/99/100 lines, 23.9/24/71.9/72 hours) land on the right side, a missing doctor reading counts as 0, and sync off gives 10, 7 and 0. All four new tests fail on the old template.
+
+- `test/helpers/safety-rules.ts`: the `ios-qa-demo-override` row's anchor moves from `/demo mode overrides/i` to `/drive every action through visible UI/i`, and its hash to the reworded paragraph, in the #3352 commit as the registry requires. `test/safety-rule-registry.test.ts` passes, including its unique-anchor and rule-removed-arm checks.
+
+### Gate integrity
+- One gate edit to review: the safety-rule registry row for `safety-ios-demo-ui-only` now anchors on the reworded paragraph. Verdict: not weaker. The paragraph still requires visible UI (`/tap`, `/swipe`, `/type`) over `POST /state/*` writes, and the only text removed is the "overrides all other rules" claim. The case's rule-removed arm deletes the same paragraph as before. No threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.194.0] - 2026-10-25
 
 **A read-only repo can now opt in to Memorable recall, one remote at a time, and a corrupt policy store no longer turns the recall veto off.** #3359 (exGeni) asked for a way to keep a repo out of the brain while still letting its prompts reach Memorable: today the recall hook skips every `deny` and `read-only` repo, and `read-only` is also the tier people pick just to stop code ingest. Garry approved a per-remote flag on 2026-10-24: off by default, and a `deny` always wins. While building the negative controls we found that the hook's policy lookup went through `get`, which quarantines a corrupt store and answers "unset", so a truncated `gbrain-repo-policy.json` let recall run in every repo, read-only and deny included, and reset the store on the way.
