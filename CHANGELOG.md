@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.91.188.0] - 2026-10-24
+
+**Pregate maps extensionless .jsx imports to their tests (#3340).** On a Next.js or webpack JSX repo, `gstack-pregate` failed `lanes` with "has no test lane" for every component imported without an extension, so /ship's receipt refused and the only way out was shipping without one. The import resolver tried `.ts`, `.tsx`, `.js`, `.mjs` and `.cjs` but never `.jsx`, and a directory import found `index.ts` or `index.js` but not `index.jsx`, `index.tsx` or `index.mjs` (it fell back to selecting on the whole directory). Reported by adam-balazs.
+
+### Fixed
+- **`lib/pregate/import-graph.ts`**: `RESOLVE_EXT` adds `.jsx`, `.mts`, `.cts`, `/index.tsx`, `/index.jsx` and `/index.mjs`. The existing entries keep their order, so a `.js` file still wins over a `.jsx` sibling. Relative, `paths` alias and `baseUrl` imports share the list, so all three resolve the new forms.
+
+### Tests
+- `test/pregate-selection.test.ts` has three new cases: an extensionless import of a `.jsx`, `.mts` and `.cts` file; a directory import that reaches `index.jsx`, `index.tsx` and `index.mjs` and leaves the directory's other files unselected; and a jsconfig `paths` alias to a `.jsx` file, with a `.js` sibling that still wins. All three failed before the change.
+
+### Docs
+- `docs/pregate.md` lists the extensions and index forms an extensionless import tries, in order.
+
 ## [1.91.187.0] - 2026-10-24
 
 **Four docs now say what the code does: the unattended run contract, the gate reply grammar, the session-kind override and voice triggers.** All four were reported by readers who checked the docs against the code. `docs/unattended.md` promised that every workflow skill ends an unattended run with a run directory and a `GSTACK_RESULT` line, but only `/autoplan` has the steps and helpers that write one (#3281, thanks @exGeni). `gstack-gate --help` still taught the reply grammar from before 1.91.107.0, without `rec` or `as-is`, while the render it relays leads with `rec` (#3282, thanks @exGeni). `docs/OPENCLAW.md` said only `spawned` is honored as a `GSTACK_SESSION_KIND` override, but `unattended` is honored too (#3287, thanks @exGeni). The README said natural phrases activate the right skill, without saying that only `voice-triggers:` aliases reach a host and that the plain `triggers:` list does not (#2118, thanks @jinzheio).
