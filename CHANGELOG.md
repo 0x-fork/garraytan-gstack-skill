@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.91.208.0] - 2026-10-25
+
+**The Capy install guide says that the team-mode session-start updater also waits for live workflow leases.** With #3385 (#3363), `bin/gstack-session-update` skips its background fast-forward while another session holds a live workflow lease, the same leases `bin/gstack-upgrade` already honors. `docs/capy-install.md` described only the upgrade side.
+
+### Documentation
+- **`docs/capy-install.md`**: the workflow-lease paragraph now says the team-mode SessionStart hook (`bin/gstack-session-update`) honors the same leases. It logs `SKIP leased pid=<p>/<age>m` to `analytics/session-update.log` and tries again at the next session start, without writing its hourly throttle stamp.
+
 ## [1.91.207.0] - 2026-10-25
 
 **Per-repository session counts include sessions from removed Claude Code worktrees (ported from #3334 by @Shweta-Mishra-ai).** Claude Code creates worktrees at `<repo>/.claude/worktrees/<name>` and removes them once their branch merges, but their session history stays. `gstack-global-discover` resolved each session's recorded directory with git, so a removed worktree resolved to nothing: its sessions counted in the tool total and in no repository. Reproduced on main: 2 sessions in a repo plus 3 in a removed worktree gave `total_sessions 5` but 2 for the repo.
