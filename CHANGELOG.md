@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.91.196.0] - 2026-10-25
+
+**`/land-and-deploy` no longer stops parallel PRs with a false "VERSION drift detected".** Step 3.4 compared the branch VERSION with the next free patch slot (`gstack-next-version --bump patch --exclude-pr`) under every ship policy. So it stopped a stamp-at-merge PR whenever a sibling shared its tentative stamp, a claim-at-open PR whenever a sibling had claimed a higher slot, and every MICRO bump even with no other PR open. Reported with a full reproduction by Evgenii Lopatin (@exGeni) in #3318.
+
+### Fixed
+- **`land-and-deploy/SKILL.md.tmpl` Step 3.4**: reads `gstack-ship-policy show-effective` and prints one `VERSION_CHECK:` verdict. Under `stamp-at-merge` it ignores claims and checks the exact head stamp: VERSION is the base's version plus one bump, and the changelog's top two headings are that version and then the base's top entry. Otherwise it stops with `STOP stamp stale` and names the `gstack-restamp --next` command. Under `claim-at-open`, and with no policy file, it stops only on a real collision: another open PR holds the same VERSION, or the base is already at or above it. MICRO bumps and versions below a sibling's claim pass.
+
+### Documentation
+- `docs/ship-policy.md` gains "What `/land-and-deploy` reads from it", which gives Step 3.4's stop and pass conditions for each `queue_mode`.
+
+### Tests
+- `test/land-and-deploy-version-check.test.ts` runs the template's own Step 3.4 block against real git fixtures with the real `gstack-ship-policy` and a stubbed claim list, under bash and, when installed, zsh. It covers the three false stops from #3318 (all pass now) and the real stops: a same-VERSION claim, a base at or above the branch, a stale stamp after a sibling landed, a base that moved by MICRO under a stamp, an `[Unreleased]` entry, and a two-bump stamp. A missing VERSION, an invalid policy and unread claims are `unavailable`.
+
+### Gate integrity
+- Step 3.4 now stops on fewer inputs: a unique VERSION below a sibling's claim, a MICRO bump, and a stamp-at-merge stamp that siblings share no longer stop. Every real collision still stops, and six mutation controls of the block (drop the collision check, the base check, the changelog binding, the one-bump rule, the policy read, or the unread-claims rule) each turn the new tests red. One new `unavailable` path: an invalid ship policy. It mirrors the existing offline path, and a base at or above the branch still stops there.
+- Owner-approved budget raise (Garry, 2026-10-24: "do it"): land-and-deploy's exact size pins in `test/fixtures/skill-md-size-allowlist.json` move up by 1,084 to 1,111 characters on 11 hosts, and its parity `maxSizeRatio` in `test/helpers/carve-guards.ts` goes from 1.112 to 1.125 (measured 1.1201). No threshold, timeout, trial count or case kind changed.
+
 ## [1.91.195.0] - 2026-10-25
 
 **Four skill prompts stop contradicting themselves or their code.** dgrant's issues #3347, #3350, #3351 and #3352 each found a skill telling the model something wrong or ambiguous: /office-hours read a master-based repo as "no changes", /plan-design-review named a vision model the design binary no longer uses, /health gave two different GBrain scores for the same readings, and /ios-qa's demo mode claimed to override every other rule in the skill.
