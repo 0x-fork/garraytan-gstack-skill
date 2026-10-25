@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.91.189.0] - 2026-10-25
+
+**A stalled apt mirror can no longer hold a Free Tests shard for 20 minutes, PR runs now see main's branch layout, and gstack's install default moves to Bun 1.4.4.** On 2026-10-21, free-suite (12) in run 39641712129 sat in "Install Playwright Chromium" until the job timeout cancelled it. The browser had already come from cache: `--with-deps` was waiting on apt's fetch of noble-security from archive.ubuntu.com. No tests ran, and a whole merge train had to be rebuilt. Separately, a push to main checks out a local `main` while PR runs check out a detached merge ref, so a fixture that created its own `main` passed its PR and then failed every main push until #3237 (run 38999168852). And Capy images and gbrain now run Bun 1.4.4, which no CI lane tested, while the installer still downloaded 1.4.3.
+
+### Fixed
+- **`.github/workflows/free-tests.yml`**: in free-suite and quick-bun-default, the Playwright install gets its own 5-minute timeout (a warm install takes about 15 s), and that install step alone gets one bounded retry, also 5 minutes. This retries infrastructure, never a test: a second failure fails the job. The browser cache is keyed on the Playwright version instead of `bun.lock`, with no prefix fallback, so a lockfile bump keeps the browser and a Playwright bump never restores a stale revision. quick-bun-default, which had no browser cache, now has one.
+- **`.github/workflows/free-tests.yml`**: free-suite and quick-bun-default run `git checkout -q -B main` right after checkout on every run whose ref is not main (PRs and train dispatches). Their clone then has the same local `main` a push run gets, so a PR run catches what the main push would.
+- **`bin/gstack-bun-version.sh`**: `GSTACK_BUN_DEFAULT` is 1.4.4, the Bun that Capy images ship, that gbrain pins, and that carries the CVE-2026-111497 fix. quick-bun-default runs the quick tier on it. The 1.4.2 minimum, engines.bun, Dockerfile.ci, every other CI lane and the verified archives (1.4.2, 1.4.3, 1.4.4) are unchanged. `docs/capy-install.md` and `docs/troubleshooting.md` name the new default.
+
+### Tests
+- `test/free-tests-workflow-wiring.test.ts` requires the version-keyed cache, the 5-minute install, its single retry as the only `continue-on-error` step in each job, and the local-main step. Both new cases fail against the previous workflow.
+- `test/gstack-capy-install.test.ts` reads the install default from `GSTACK_BUN_DEFAULT` wherever it meant "the install default", so the next bump doesn't need a literal sweep, and so does the `test/runtime-pins.test.ts` case that reads gstack's own CI pins. `test/bun-resolve.test.ts` moves its gbrain-like project pin from 1.4.3 to 1.4.4, gbrain's real pin.
+
+### Gate integrity
+- One gate edit to review: the Playwright install step in the required Free Tests lane is `continue-on-error`, and a retry step that is not marked that way repeats it. Verdict: not weakening. A shard still fails unless one of the two installs succeeds, and every test, threshold, timeout and trial count stays the same. The local-main step strengthens PR runs. No test assertion was removed.
+
 ## [1.91.188.0] - 2026-10-24
 
 **Pregate maps extensionless .jsx imports to their tests (#3340).** On a Next.js or webpack JSX repo, `gstack-pregate` failed `lanes` with "has no test lane" for every component imported without an extension, so /ship's receipt refused and the only way out was shipping without one. The import resolver tried `.ts`, `.tsx`, `.js`, `.mjs` and `.cjs` but never `.jsx`, and a directory import found `index.ts` or `index.js` but not `index.jsx`, `index.tsx` or `index.mjs` (it fell back to selecting on the whole directory). Reported by adam-balazs.
