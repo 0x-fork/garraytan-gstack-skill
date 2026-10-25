@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.91.190.0] - 2026-10-25
+
+**The weekly model-policy freshness check reads OpenAI's deprecations page again (#3155).** It has been red since the 2026-10-19 run: OpenAI's page now writes some deprecated models as a display name followed by the backticked ids, for example ``GPT-4o (`gpt-4o-2024-08-06`, `gpt-4o-2024-11-20`)``, and the parser refused any model cell that did not start with a backtick, so every run stopped with `openai-lifecycle:unrecognized-deprecated-model-cell`. Left alone, the stored pinned-model evidence would have gone stale around 2026-11-11.
+
+### Fixed
+- **`lib/model-policy-freshness-sources.ts`**: an OpenAI deprecated-model cell is accepted when it contains backticked model ids, wherever they sit in the cell, and each id becomes its own lifecycle row. A cell with no backticked id still fails with `unrecognized-deprecated-model-cell`. The live page (42,211 bytes, fetched 2026-10-24) now parses to 177 rows, including the five ids from its four display-name rows.
+
+### Tests
+- `test/fixtures/model-policy-freshness/openai-lifecycle.md` gains a display-name row, and `test/model-policy-freshness.test.ts` checks that both of its ids come out with the row's shutdown date. With the old parser, 16 of the file's 21 tests fail on the new fixture.
+- Negative controls: the existing cell with its backticks removed, and the new display-name row with unticked ids, both still fail with `unrecognized-deprecated-model-cell`.
+
+### Gate integrity
+- One accepted-input change to review: the OpenAI lifecycle parser accepts a model cell with text before its backticked ids. It is a weekly advisory check, not a required check. The negative controls above still fail closed, and no threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.189.0] - 2026-10-25
 
 **A stalled apt mirror can no longer hold a Free Tests shard for 20 minutes, PR runs now see main's branch layout, and gstack's install default moves to Bun 1.4.4.** On 2026-10-21, free-suite (12) in run 39641712129 sat in "Install Playwright Chromium" until the job timeout cancelled it. The browser had already come from cache: `--with-deps` was waiting on apt's fetch of noble-security from archive.ubuntu.com. No tests ran, and a whole merge train had to be rebuilt. Separately, a push to main checks out a local `main` while PR runs check out a detached merge ref, so a fixture that created its own `main` passed its PR and then failed every main push until #3237 (run 38999168852). And Capy images and gbrain now run Bun 1.4.4, which no CI lane tested, while the installer still downloaded 1.4.3.
