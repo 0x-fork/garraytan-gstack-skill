@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.91.200.0] - 2026-10-25
+
+**/cso doctor no longer calls a Go repository "stack: python".** A repository with a root `go.mod` and no Node, Bun, Rails or JVM build matched no supported stack, so preparation fell back to Python and doctor reported `stack: python` with `MISSING_METADATA requirements.txt`, which sent Go users looking for a Python file they never needed (#3263). Go runtime support itself is not planned for now (Garry, 2026-10-24), so /cso keeps running static assessment on Go repositories; the runtime catalog and the /cso release contract are unchanged.
+
+### Fixed
+- **`lib/cso/preparation.ts`**: a root `go.mod` with no other supported stack is reported as `stack: go` with `UNSUPPORTED_STACK` ("Go (go.mod) is not a supported runtime stack yet; supported runtime stacks are Node, Bun, Python, and Rails."), the way a Maven or Gradle build is already reported as Java. Python helper metadata beside `go.mod` (a docs `requirements.txt`, say) no longer turns the repository into Python. A `go.mod` beside a Node, Bun or Rails lockfile leaves that stack's detection as it was.
+
+### Tests
+- `test/cso-preparation.test.ts` checks that a Go module is `go` with exactly that prerequisite and never mentions `requirements.txt`, and that a hashed `requirements.txt` beside `go.mod` stays Go. Both fail on main. Controls: `go.mod` beside a Node lockfile stays a ready Node plan, a Python project without `go.mod` stays Python, and a repository with no stack metadata keeps the Python fallback.
+- `test/helpers/cso-runtime-catalog.ts` leaves `go` out of its qualified-runtime fixture list, as it already did `java`.
+
+### Gate integrity
+- No gate edit. No threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.199.0] - 2026-10-25
 
 **When /sync-gbrain refuses because a gbrain autopilot is running, it now says which process it found and what to do.** The guard against syncing while `gbrain autopilot` runs is machine-wide on purpose: two syncs sharing one brain or working tree can race and delete files (#1734). But the refusal only said `(process:gbrain autopilot)`, so someone whose autopilot served a different brain could not tell what was blocking them (#3360, part 1). Garry decided on 2026-10-24 to keep the check machine-wide and improve the message.
