@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.91.213.0] - 2026-10-25
+
+**The CI image and the Ubicloud free-suite VMs move off Node.js 22.20.0 to 22.23.4, and both now check the Node archive's SHA-256 before unpacking it (#3354, port of #3355 by @michael-sumner).** 22.20.0 is affected by the October 21, 2026 Node.js security releases, including the Brotli decoder out-of-bounds write (CVE-2026-111497, high) and the TLS hostname bypass for leading-zero IPv4 hosts (CVE-2026-106069, high). 22.23.4 is the patched 22.x release. #3355 bumped `.github/docker/Dockerfile.ci`, but `scripts/ubicloud/setup-free-suite.sh` pins Node separately and would have kept installing 22.20.0 on every remote free-suite run.
+
+### Fixed
+- **`.github/docker/Dockerfile.ci`**: `NODE_VERSION` is 22.23.4 (Michael Sumner's commit). The archive is checked against `NODE_SHA256`, the linux-x64 hash from the release's SHASUMS256.txt, whose signature verifies against the Node.js release keyring, before it is unpacked.
+- **`scripts/ubicloud/setup-free-suite.sh`**: pins the same 22.23.4 and hash, and downloads the archive to a temporary file and verifies it instead of piping `curl` straight into `sudo tar`.
+
+### Tests
+- `test/ci-image-cli-pin.test.ts` gains four cases: Dockerfile.ci pins an exact Node version and a SHA-256, both files verify before they unpack, and `setup-free-suite.sh` pins the same version and hash as the image. On #3355's head alone, all four fail; on main, three fail.
+- The Bun ordering check in `setup-free-suite.sh` now looks for `sha256sum -c` after the Bun download instead of anywhere in the file, because the Node check now comes first.
+- The test names `Dockerfile.ci` as `join(__dirname, '..', '.github', …)`, the form pregate's literal scan resolves, so a change to the image now selects it (before, pregate refused a Dockerfile.ci-only change with `PREGATE_NO_LANE`).
+
+### Gate integrity
+- One accepted-input change to review: the Bun ordering check searches for its `sha256sum -c` from the Bun download onward. It now accepts one input it used to reject: a file with some other `sha256sum -c` before the Bun download and the Bun check after it, which is this file. The property it guards, Bun verified after download and before unpack, is unchanged. A file whose only `sha256sum -c` sits before the download still fails, and so does removing the Bun hash or moving it after `unzip` (negative controls run). No threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.212.0] - 2026-10-25
 
 **/careful no longer asks about words inside a commit message (#1060; ported from #3221 by @Bhumika-1432006).** The careful hook matched its MEDIUM patterns against the whole command, so `git commit -m "fix: prevent drop table in migration"` asked for approval as an SQL DROP. The hook now masks git commit's own literal message before those checks, including the `-m "$(cat <<'EOF' … EOF
