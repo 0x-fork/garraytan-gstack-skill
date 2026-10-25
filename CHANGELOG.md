@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.91.223.0] - 2026-10-25
+
+**/plan-tune's inferred profile finally moves: a clicked answer is logged as the question's registered option key, not its label.** #2623 showed every inferred dimension stuck at 0.5 on a 1,286-event log: the AskUserQuestion hook recorded labels like "A) Fix it now (recommended)", while the signal map that turns answers into dimension nudges is keyed by registered option keys like `fix-now`, so 0 of 1,286 answers matched. Now five hook-captured label answers to the registered architecture-finding question move `architecture_care` from 0.5 to 0.632, and `--trace` lists all five.
+
+### Fixed
+- **`bin/gstack-question-log`**: on a hook-captured event (`source: hook`) for a registered `question_id`, the clicked label is mapped to that question's registered option key before it is written, and the label is kept in a new `choice_label` field. A label in `recommended` is mapped the same way, so `followed_recommendation` compares keys. Ad-hoc and `hook-<hash>` ids and unmatched or ambiguous labels are written as given. Rows from other writers (the agent's own log call, auto-decide, Codex import, typed free text) are unchanged, because readers such as the plan-ceo-review auto-decide check match the full mode names those rows carry. Existing logs are not rewritten.
+- **`scripts/psychographic-signals.ts`**: new `resolveOptionKey(question_id, label)`. It strips the `A)` selector and `(recommended)` suffix, then matches the label's leading words against the question's own options only: each key's own words (`fix-now` → "fix now") plus a short cue list ("Add to TODOs" → `defer`, "Ship as-is" → `skip`, "HOLD SCOPE" → `hold`). The longest cue wins and a tie stays unmapped.
+
+### Tests
+- `test/plan-tune.test.ts`: every registered option resolves from its own words, bare and as an `A) … (recommended)` label; 20 common phrasings, including the four plan-ceo-review mode names, map to their keys; negative controls (unregistered ids, a question with no options, a label naming no option, a mid-sentence cue, another question's key, a number that looks like a selector) stay unmapped. Two capture tests run the real bin: hook labels become keys with `choice_label` kept, while agent rows (including a `HOLD SCOPE` auto-decide row), ad-hoc ids, unmatched labels and free text are untouched, and a picked label follows a key recommendation. Both capture tests fail against the old bin.
+
+### Gate integrity
+- No test expectation, threshold, budget, timeout, trial count or case kind changed. Existing tests that pin label rows from the agent, auto-decide and Codex import paths pass unchanged.
+
 ## [1.91.222.0] - 2026-10-25
 
 **Five flaky tests now fail only for real defects, and a judge reply that isn't valid JSON says so in its failure line (daily flaky-fix pass, GSTA-91).** `context-restore-fragment-match` failed 0/3 on main cb99df4, although every run restored the right checkpoint: to find the checkpoint whose title matches, the agent often prints all three, and the case failed whenever another checkpoint's body appeared anywhere in the transcript. `test/gstack-ff-update.test.ts` counted every `sleep 300` on the machine, so heartbeats from parallel test files changed its count (remote pregate at #3412's head: expected "1", received "3"). The `GSTACK_CAPY=1` install-admission case in `test/gstack-skill-start.test.ts` makes ten `gstack-skill-start` spawns under bun's 5 s default timeout and took 3.6–5.7 s on a 4-core machine. The QA-only fixture's late scenarios mocked a 1000 ms capture budget but ran each attempt's real setup inside it. The setup-browser-cookies workflow judge in train-4 gate 40173759210 returned JSON with an unescaped quote in its reasoning, and the flake record read only "JSON Parse error: Expected '}'".
