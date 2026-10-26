@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.91.233.0] - 2026-10-26
+
+**/plan-tune's inferred profile no longer pins at 1.0 after a few reviews, and it now records how many answers moved each dimension.** This closes the last two parts of #2623. One /plan-eng-review produces about five answers, and every answer added its full delta, so eight sessions of "fix now" took `architecture_care` to 0.998, as uninformative as the 0.5 it replaced. Now each UTC day moves a dimension at most as far as one strong answer, and eight days of the same answers read 0.808. The profile JSON (`--profile`) also records `contributing_events` per dimension, so a dimension with no evidence reads 0 there instead of a bare 0.5; /plan-tune's display and `--check-mismatch` don't read it yet (#3436).
+
+### Fixed
+- **`bin/gstack-developer-profile`**: `--derive` sums each UTC day's deltas per dimension (by the row's `ts`) and clamps the sum to the largest single delta in the signal map (±0.06 today). Answers within a day net out before the clamp. Only an ISO 8601 date or date-time `ts` counts as dated, and a time without a zone is read as UTC; every other row shares one undated bucket, so a junk timestamp can't escape the bound. `diversity.days_span` counts the same UTC days. The bound ignores `session_id` on purpose: the PostToolUse hook and the agent log different ids for one review, and an unsubstituted `SESSION_ID` placeholder would merge every review into one bound or leave each answer unbounded. Several reviews on one day count as one. `--trace` uses the same accumulation, so it lists every contributing answer, each clamped day ("day 2026-04-01: +0.250 capped to +0.060") and a `TOTAL` line whose value matches `--derive`.
+- **`bin/gstack-developer-profile`**: a logged choice named after an `Object.prototype` member, such as `constructor`, or a log line that parses to a non-object such as `null`, no longer makes every later `--derive` and `--trace` fail; signal lookups use own properties only. `--trace` replaces control characters in the logged fields it prints, so a logged `ts` can't forge a `TOTAL` line.
+
+### Added
+- **`inferred.contributing_events`**: per dimension, the number of logged answers that moved it (an answer that writes two deltas to one dimension counts once). Ported from #2625 by @v639dragoon, with co-author credit. #2625's autonomy signal from `followed_recommendation` stays parked, as decided in its Oct 8 review.
+
+### Docs
+- `docs/designs/PLAN_TUNING_V0.md` documents `signal_events`, `contributing_events` and the per-day bound in the profile schema, including why the bound ignores `session_id`.
+- `TODOS.md`: the #2623 entry now covers only its remaining Gate 1 work, the `{skill}-{slug}` hinted fallback, tracked as #3442.
+
+### Tests
+- `test/gstack-developer-profile.test.ts`: `contributing_events` counts unique rows when one answer writes two dimensions, and is all zero for an answer that matches no signal. The bound equals the signal map's largest delta. Five answers on one day move a dimension by exactly the bound in both directions, whether they carry one `session_id`, five different ones, the literal `SESSION_ID` placeholder, or one review logged by both the hook and the agent. The day is the UTC day of `ts` even when the machine's zone is west of UTC, and a `ts` without a zone, `T`- or space-separated, is read as UTC. `--trace` prints the clamped days and a total that matches `--derive`, and replaces control characters. A `constructor` choice, a `null` line and array-valued `question_id` or `user_choice` rows are ignored. Rows whose `ts` is not ISO 8601 (`TS`, `junk 1`, a number) share one undated bucket and add no days to `days_span`. Negative controls: the same answers on separate days, a second day after a capped first day, and an answer pair that nets out are not clamped. The original positive tests fail against the old bin; the day-bound, `constructor` and control-character tests fail against the per-session version; a one-sided clamp fails the bound tests, and local-day bucketing fails the UTC tests.
+- The test helper `logQuestion` sets `GSTACK_QUESTION_LOG_NO_DERIVE=1`, so the background derive can't race a test's own `--derive` (from #2625).
+
+### Gate integrity
+- No test expectation, threshold, budget, timeout, trial count or case kind changed.
+
 ## [1.91.232.0] - 2026-10-26
 
 **The setup-browser-cookies workflow judge now has a preregistered calibration corpus, and its structured-output calibration is recorded as held, so the judge stays on today's request (GSTA-91).** In train-4 gate 40173759210, the cookie judge (claude-sonnet-5-5, free-text transport) returned JSON with an unescaped quote. The repo's fix for that shape is the JSON-schema transport, and `test/fixtures/judge-calibration/README.md` lets a configuration switch only after a calibration lands. The cookie configuration had no corpus until now. Its comparison-1 run removed the parse errors (old 2 of 144 samples, new 0 of 72) and matched or improved every other measure. It is held on one landing condition: a new false pass on a07. a07 scored 4/4/4 on all three new samples and on all three `old-b` samples. `old-a`'s a07 panel is incomplete because one old sample returned invalid JSON (both valid `old-a` a07 samples also scored 4/4/4), and false passes are counted against `old-a` alone, so the result counts against the new request only.
