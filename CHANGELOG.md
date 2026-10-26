@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.91.232.0] - 2026-10-26
+
+**The setup-browser-cookies workflow judge now has a preregistered calibration corpus, and its structured-output calibration is recorded as held, so the judge stays on today's request (GSTA-91).** In train-4 gate 40173759210, the cookie judge (claude-sonnet-5-5, free-text transport) returned JSON with an unescaped quote. The repo's fix for that shape is the JSON-schema transport, and `test/fixtures/judge-calibration/README.md` lets a configuration switch only after a calibration lands. The cookie configuration had no corpus until now. Its comparison-1 run removed the parse errors (old 2 of 144 samples, new 0 of 72) and matched or improved every other measure. It is held on one landing condition: a new false pass on a07. a07 scored 4/4/4 on all three new samples and on all three `old-b` samples. `old-a`'s a07 panel is incomplete because one old sample returned invalid JSON (both valid `old-a` a07 samples also scored 4/4/4), and false passes are counted against `old-a` alone, so the result counts against the new request only.
+
+### Tests
+- `test/fixtures/judge-calibration/cookie-workflow/`: 24 items. p01 is the production bundle (`buildCookieWorkflowJudgeInput`); a02 and a05 are real earlier revisions; the rest are hand-edited variants rendered by the same builder. Labels were preregistered and committed before any request with the schema was sent. A separate run (openai/gpt-6.1-sol) then labeled every item blind, and a third reviewer (google/gemini-4-argon) adjudicated the two disagreements: a01 kept pass, a08 changed to fail. `runs/` holds every sample and the result. The cost was 216 calls and $2.81, priced in `manifest.json` before dispatch as a separately funded entry.
+- `scripts/judge-calibration-configs.ts`: the `cookie-workflow` configuration builds prompts with `buildWorkflowJudgePrompt(COOKIE_WORKFLOW_JUDGE, …)` and uses the eval's median floors of 4/3/4. Its new request differs from the old one only by `WORKFLOW_JUDGE_RESPONSE_SCHEMA`.
+- `test/judge-calibration.test.ts` covers the new configuration and its pass rule, including the actionability floor. The wiring test now requires the cookie registration to send the schema exactly when the recorded cookie calibration lands. It doesn't land, so the registration stays unchanged and 15 workflow registrations use the schema. The cookie registration may only spread `COOKIE_WORKFLOW_JUDGE`, so the calibrated request stays the one production sends.
+- Two new free tests: the calibration builds byte-for-byte the prompt the cookie eval sends, and `analyze()` reproduces the committed result from its labels, samples, stop record and request options.
+
+### Gate integrity
+- No judge request, rubric, threshold, sample count, landing rule or case changed. The cookie judge keeps its free-text request. No gate exception is proposed.
+
 ## [1.91.231.0] - 2026-10-26
 
 **A fresh install is about 520 MB smaller: `./setup` installs production dependencies only.** Setup ran `bun install` without `--production`, so every user also got the test and eval toolchain from `devDependencies`, mostly the Claude Agent SDK's native binaries (both the glibc and musl builds on Linux, ~440 MB). Measured on a clean Ubuntu 24.04 container with a cold Bun cache (4 vCPU, two runs each): `node_modules` goes from 1,094 MB to 572 MB, the checkout from 1.74 GB to 1.22 GB, and the whole install with Chromium from 2.42 GB to 1.90 GB. `./setup` took 24.6 s and 20.0 s before, 21.1 s and 18.9 s after.
