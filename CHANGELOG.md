@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.91.239.0] - 2026-10-26
+
+**BROWSER.md now says that gstack's own browser still trusts the compromised eMudhra intermediates, and how to check (#3338).** Chrome blocked eight eMudhra intermediate CAs by CRLSet on 2026-10-17, the day their key compromise was reported, and scheduled the removal of their root, emSign ECC Root CA - G3, from the Chrome Root Store for 2026-10-27. gstack's default headless browser gets neither: it launches with Playwright's `--disable-component-update`, so it receives no CRLSet updates, and the root store built into the bundled Chromium still trusts the root. On 2026-10-24, `$B goto https://dv-g3b-emudhra.we-have-a-problem.com/` loaded the test page on gstack's pinned Playwright 1.62.1 (Chromium 151.0.7922.34), and Chrome for Testing builds from 158.0.8115.0 fail it with `ERR_CERT_AUTHORITY_INVALID`, so the Playwright bump waits for a release that bundles one of those builds.
+
+### Changed
+- **`BROWSER.md`**: a new "TLS trust: the bundled Chromium's root store" section, at the end of the security stack, gives the warning, the plan (move to the first Playwright release whose Chromium is 158.0.8115.0 or later; until then, no signed-in work in this engine on an untrusted network) and the check: on a network that does not inspect TLS, after `$B stop` and once a known-good HTTPS site loads in headless mode, only `ERR_CERT_AUTHORITY_INVALID` on the test host means a build is fixed. Environment-dependent caveats (proxy variables, profiles, custom builds, headed CRLSet timing) are tracked in #3440. The table of contents, the fallback-engine introduction and the `cookie-import-browser` and `handoff` command rows link to the section. Aside is unaffected, because it is your own browser with its own updates.
+
+### For contributors
+- The edits above the cookie workflow excerpt change no line count, so the `setup-browser-cookies/SKILL.md workflow` judge input is byte-identical (prompt SHA-256 `c851e635…`, 12,805 bytes, before and after).
+
 ## [1.91.238.0] - 2026-10-26
 
 **Five /ship frictions the unattended lanes hit (GSTA-102).** Each fix is one commit.
