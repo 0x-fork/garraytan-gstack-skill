@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.91.255.0] - 2026-10-26
+
+**Merge trains fill at 3 READY PRs or one hour after the first READY, and a train verdict's cost line no longer hides the trials it could not price.** On 2026-10-26 the 5-PR / 3-hour fill left READY PRs waiting most of a day, and `train verdict` printed `cost=$24.41` for a train whose slice report said `cost $32.92 known + 54 of 136 trial(s) cost unknown`. The slice report was right: 54 E2E trials had no cost attributed because their result records are named by a display label ("/benchmark workflow") while the case is named by its id (`benchmark-workflow`), so the per-case sum the train record carries was short by $8.51. Every train cost the coordinator reported until this fix was that undercounted verdict figure (about $24 per train against about $33 real).
+
+### Changed
+- **`.gstack/ship-policy.json`**: `train.max_size` 5 → 3 and `train.fill_hours` 3 → 1. `fillDue` already dispatches at either bound, whichever comes first; a fourth READY PR is `HELD:` for the next train. docs/ship-policy.md says so in the fill paragraph and its example block.
+
+### Fixed
+- **`scripts/lib/paid-report.ts`**: when a shard ran exactly one case (every case shard since W5a), its result records belong to that case even when they are named by a display label, so the trial's `cost_usd` is the record's and `cost_known` is no longer false; a failed trial in such a shard also takes its `failure_class`, `exit_reason` and `error` from that record (train-gate classes a red `infra` record INFRA instead of VERDICT) where it was a bare `assertion` with the JUnit message. No case's pass or fail changes. A multi-case shard whose records carry display labels keeps those trials cost-unknown rather than guessing which case paid. The train record's per-case `cost_usd` (scripts/train-gate.ts) and the slice report's headline now agree for case shards; the headline was never wrong.
+- **`lib/ship-queue-train-verdict.ts`**: the `ATTEMPT:` line prints `cost=$<known> known + <n> of <m> case(s) cost unknown` when some but not every panel is priced, the bare `cost=$<sum>` only when every panel is priced, and no cost at all when none is (unchanged).
+
+### Tests
+- `test/gstack-ship-policy.test.ts` pins the live fill rule (3 PRs or one hour) and exercises `fillDue` with the live block at 59 and 60 minutes and at 3 PRs.
+- `test/paid-report-census.test.ts`: a display-labelled record in the periodic fixture's `qa-fix-loop` case shard gives the trial `cost_usd: 1.23` with no `cost_known: false`, `verdict.costUsd` 1.23 and the headline `cost $1.23 known + 6 of 7 trial(s) cost unknown` (red before the fix: `cost_usd: 0, cost_known: false`); a failed display-labelled record gives the trial `failure_class: 'timeout'`, its exit reason, error and cost (red before the fix: `assertion` with the JUnit message); the two-case `skill-e2e-cso` shard keeps its display-labelled trial unknown while the id-named one is priced.
+- `test/ship-queue-train-cost.test.ts`: a green train whose record has two unpriced panels prints `cost=$0.70 known + 2 of 3 case(s) cost unknown`; a fully priced record prints `cost=$1.50` alone (red before the fix: the bare `cost=$0.70`); every panel priced at zero prints `cost=$0.00`.
+- `scripts/lib/windows-curation.ts` excludes `test/ship-queue-train-cost.test.ts` from the Windows subset like `test/ship-queue-train.test.ts`: both drive `bin/gstack-ship-queue` against the `#!/bin/sh` gh shim, which windows-latest cannot run.
+
+### Gate integrity
+- No threshold, rubric, trial count, case kind or judge prompt changed. Cost attribution changes what a trial record reports, never whether a case passed.
+
 ## [1.91.254.0] - 2026-10-26
 
 **Pregate ergonomics for a repository that is not gstack (Lane D, GSTA-112; plan harness-codify E4–E6; Captain issues 6, 11, 12).** Three Captains lost their first `/ship` pass to `PREGATE_NO_LANE` in a repo that had no `.gstack/pregate.json` yet (FOUN #292, harness-evals #81/#82); the non-downgradable `secrets` check refused 1,800 dummy per-trial tokens, 11-digit Actions run ids read as phone numbers and a public Firebase key every bundle rebuild re-adds (harness-evals #81/#83, GSTA-102, GSTA-106); a lane whose runner could not start read as the diff's failure and was waived by test name (truther #617); and pregate's logs under `os.tmpdir()` were shared between parallel runs and wiped by a Capy wake (gbrain 16).
