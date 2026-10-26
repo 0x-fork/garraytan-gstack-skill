@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.91.235.0] - 2026-10-26
+
+**An issue we intend to fix later now stays open under the `parked` label instead of being closed.** The Oct 11 triage closed 75 feature requests with a "not rejected" note, and GitHub showed them as closed with no fix. Those 75 are open again under the new `parked` label on garrytan/gstack ("Not fixed yet, not rejected: stays open; a comment says where it is tracked and what fixes it"), each with one comment saying where the work is tracked and what fixes it. The rule is written down: an issue closes only as fixed, duplicate or won't fix, each with its reason; a report that main already fixed closes as fixed, not won't fix; and a duplicate uses GitHub's own duplicate close reason.
+
+### Added
+- **`docs/triage.md`**: the three issue states (open, parked, closed), how to park an issue (the label plus one comment naming where it is tracked and what fixes it), when the label comes off, the three close reasons with their GitHub close reason and label, and where the parked themes live.
+
+### For contributors
+- **`CONTRIBUTING.md`**: an "Issue triage" section ahead of the PR wave process, pointing at docs/triage.md.
+- **`TODOS.md`**: the Wave 9 feature-themes note says issues stay open under `parked` and points at their theme there (73 listed, 75 with #3061 and #3122), instead of closing with a link.
+
 ## [1.91.234.0] - 2026-10-26
 
 **Weekly tagged releases, and a `stable` channel that team-mode auto-update follows by default.** Main kept stamping a version per merge, a dozen a day, with no tag or release anywhere, and `./setup --team` installs moved to every one of them within the hour. Now a Monday-morning workflow tags the newest green commit on main as `v<VERSION>`, publishes a GitHub Release from the CHANGELOG headlines and fast-forwards a `stable` branch to it; team installs follow `stable` and move once a week (plus hotfixes), contributors keep following main, and one config key switches either way. Nothing about per-merge stamping or the merge train changed (docs/releases.md).
