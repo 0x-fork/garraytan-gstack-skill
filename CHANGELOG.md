@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.91.246.0] - 2026-10-26
+
+**The README is a first-ten-minutes page again: what gstack is, how to install it, the first three skills to try, the skills tables, platform notes, and links to docs/ for everything else.** It was 862 lines and 90 KB, with CSO producer sandboxing, Codex model-selection order and the uninstall script in the path of someone deciding whether to try it. It is now about 300 lines and 33 KB. Nothing was deleted: every removed section moved to a docs/ page, verbatim except the "Proactive skill suggestions" paragraph in docs/why-gstack.md, which now describes the core-set default and `gstack-config set proactive core|all|off` landing in #3432, and every anchor other files link to (`#install--about-30-seconds`, `#gbrain--persistent-knowledge-for-your-coding-agent`) still resolves.
+
+### Changed
+- **`README.md`**: a short intro, a three-skill quick start (/office-hours, /review, /qa), the two-step install with the host matrix, the demo transcript, the sprint table, the review picker and the power-tools table unchanged, a short GBrain section, new "Platform notes" (macOS, Linux, the Windows paragraphs), the Docs table with the new pages, a one-paragraph privacy summary and a short troubleshooting section that keeps the CLAUDE.md `/browse` rule.
+
+### Added
+- **`docs/why-gstack.md`**: the Karpathy quote, the LOC numbers and their caveats, the contribution graphs, "Karpathy's four failure modes", "Parallel sprints" and "10-15 parallel sprints".
+- **`docs/install.md`**: setup timing, the requirements paragraph in full, the CSO image-preload window, team mode's Node.js hook, and the hooks `./setup` registers (the timeline Stop hook and canonical-only hook paths).
+- **`docs/uninstall.md`**: the uninstall script and the manual removal steps, CLAUDE.md cleanup, Playwright and Aside notes.
+- **`docs/hosts.md`**: OpenClaw and the ClawHub skills, which agents a checkout renders for, the Copilot and Antigravity notes, outside-review providers, the `/claude` rename, the instruction-only digest, the Codex behavioral profile and model selection order, the plan-review and implementation tiers, the design binary's models, and adding a host.
+- **`docs/qa-without-a-webpage.md`**, **`docs/standalone-binaries.md`** (every `gstack-*` CLI plus the CSO evaluation producer contract and its host matrix), **`docs/voice-input.md`**, **`docs/privacy.md`** (the full Privacy & Telemetry section).
+- **`docs/domain-skills.md`** gains the README's summary of domain skills and the raw CDP escape hatch; **`docs/gbrain-quick-tour.md`** holds the README's short version of the four paths, trust policy and memory sync; **`docs/troubleshooting.md`** gains a "Quick answers" section with the README's short troubleshooting entries.
+
 ## [1.91.245.0] - 2026-10-26
 
 **`gstack-ship-queue ready` counts CI the way GitHub's rollup does, and names the way through a CHANGELOG-only conflict.** A superseded run (gbrain saw a cancelled `contributor-gate` beside three later passes on the same head) made `ready` print `failed=1` where GitHub showed 0 failed, and a PR that conflicts with main on CHANGELOG alone had no documented route to green CI on its head.
