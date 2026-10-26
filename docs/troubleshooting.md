@@ -1484,6 +1484,59 @@ moved into place.
 **Fix.** Make the verdict directory writable, or set `GSTACK_STATE_ROOT` to a
 writable directory, then re-run `bin/gstack-capy-install`.
 
+<a id="project-floor-unmet"></a>
+### `WARN floor — installed <v> is below the floor <f> that <project>/.gstack/ship-policy.json declares (min_gstack_version); fix: ... (PROJECT_FLOOR_UNMET)` / trailer note `floor=<f> (<file>)`
+
+**Meaning.** The project you work in declares the oldest gstack it wants its
+crew on, as `min_gstack_version` in its `.gstack/ship-policy.json` (the same
+key `gstack-ship-queue` validates; a file holding only that key is valid), and
+this machine's checkout is older. One commit in the project replaces a
+crew-wide "upgrade to <v>" broadcast: every machine's next session check says
+so and names the command. It is a project rule, not a security minimum, so
+the row is a WARN and the trailer stays `gstack: ok` with a `floor=<f>
+(<file>)` note and a `fix:` note; only the supported minimum
+(`REVISION_BELOW_MINIMUM`) fails a session for being old.
+
+**Fix.** Run the fix before the first workflow: on Capy, `bash
+<skill>/scripts/install.sh --for <skill>` fast-forwards a clean checkout to
+origin and reinstalls in one step (`SELF_UPGRADE: done`); elsewhere
+`bin/gstack-upgrade`. If the floor is above gstack's latest release, lower it
+in the project.
+
+<a id="project-node-pin-unmet"></a>
+### `WARN pins — node <v> outside <pin> (<file>); node read from <path> (node pin only; bun pins pass); fix: ... (PROJECT_NODE_PIN_UNMET)`
+
+**Meaning.** The project's Node pin is not met by the Node first on PATH (a
+Capy image's Node behind the pin, say), while every Bun pin is met. gstack's
+own commands run on Bun, and the project's tests usually select their Node
+themselves (nvm, the CI matrix), so this is advisory: the trailer stays ok. A
+Bun pin that is unmet, with or without a Node gap, is still `FAIL pins`
+(`PROJECT_PIN_MISMATCH`).
+
+**Fix.** When this machine will run the project's tests, run the row's fix: the
+Capy skill installer installs an exact pin into gstack's runtime store and
+launches it through the `GSTACK_LAUNCH` PATH; otherwise `nvm install <pin>`
+and put it first on PATH. A range pin (`>=24.22.1`) needs a Node you install
+yourself; or change the pin in the project.
+
+<a id="upgrade-skipped"></a>
+### `WARN behind — installed <v> is <n> commits behind origin (latest <ver>) and the session-start upgrade was skipped: <reason>; fix: <command> (UPGRADE_SKIPPED|UPGRADE_BUSY|UPGRADE_REFUSED)` / trailer note `behind=<n> (latest: <ver>); upgrade skipped: <reason> (<CODE>); fix: <command>`
+
+**Meaning.** An install-mode session start above the supported minimum found
+the checkout behind origin and could not fast-forward it: the checkout is
+dirty, diverged or pinned (`UPGRADE_REFUSED`), another live session holds a
+lease (`UPGRADE_BUSY`), or `bin/gstack-upgrade` is missing
+(`UPGRADE_SKIPPED`). Nothing was changed, the doctor certified the installed
+revision, and the trailer stays `gstack: ok` with the notes above: a gap
+above the minimum is never a hard fail. The verdict records the installed
+revision, so a lane that is behind reports it (`behind=` rides every report).
+
+**Fix.** When the lane needs the newer gstack (a `floor=` note, or a fix that
+landed upstream), clear the named cause and run the fix: `bin/gstack-upgrade`
+after the refusal is resolved, or the Capy skill installer again once the
+lease holder finishes. Below the supported minimum the bootstrapper fails
+`revision` instead (`REVISION_BELOW_MINIMUM`).
+
 <a id="upgrade-refused"></a>
 ### `gstack-upgrade: <cause>; nothing was changed; fix: <command> (UPGRADE_REFUSED)`
 
@@ -1521,8 +1574,10 @@ every lease with its age and `alive|dead|stale`; a holder is named as
 When you know they are idle, `GSTACK_UPGRADE_FORCE=1 bin/gstack-upgrade`
 proceeds. At a Capy session start the same refusal appears as
 `SELF_UPGRADE: skipped (live gstack sessions hold this installation: ...)`,
-and the trailer is `gstack: fail behind — … (UPGRADE_BUSY)`: a session that
-could not upgrade is never certified ok.
+the doctor adds `WARN behind — … (UPGRADE_BUSY)` and the trailer stays
+`gstack: ok … (behind=<n> (latest: <v>); upgrade skipped: … (UPGRADE_BUSY); fix: …)`:
+the installed revision is above the supported minimum, so the session is
+certified and the note names the fix.
 
 <a id="upgrade-fetch-failed"></a>
 ### `gstack-upgrade: could not reach origin (...) (UPGRADE_FETCH_FAILED)`
@@ -1565,9 +1620,12 @@ action that never fails the run. Without provenance (a direct
 `gstack-doctor --check`, or a pre-bootstrapper copy with no
 `GSTACK_CAPY_WRAPPER=` line, which reads as wrapper 0) it reads the Drive
 copies (`~/.capy/drive/*/skills/gstack/scripts/install.sh`, or only
-`GSTACK_CAPY_WRAPPER_PATH` when set) and fails only when every copy is stale,
-listing each with its revision. A stale active wrapper is a `WARN` too: an
-older copy still works (`capy/support.env`). `bin/gstack-upgrade` runs the
+`GSTACK_CAPY_WRAPPER_PATH` when set), listing each with its revision: every
+copy a bootstrapper below the minimum is `WARN wrapper — every Capy skill copy
+is below the minimum wrapper <m> (it still works): ...` with the owner action,
+and it fails only when a copy is pre-bootstrapper (wrapper 0), which cannot
+hand over at all. A stale active wrapper is a `WARN` too: an older copy still
+works (`capy/support.env`). `bin/gstack-upgrade` runs the
 installer with the checkout's own copy as the active wrapper and never leaves
 a pending reinstall when the wrapper row is the only failure.
 
