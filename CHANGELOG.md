@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.91.224.0] - 2026-10-25
+
+**`/context-restore` now says when commits landed after a checkpoint was saved, instead of offering finished steps as the plan.** `/context-save` recorded the branch, a timestamp and the modified files, but not the commit, so a checkpoint saved before a step was committed came back with that step still listed under Remaining Work. Ported from #3316 by @soyames, with their commit kept.
+
+### Fixed
+- **`bin/gstack-slug --stamp-checkpoint`** also writes `head:`, the commit the save describes, next to `remote:`, `project_root:` and `worktree:`. A re-stamp replaces it rather than adding a second line.
+- **`/context-restore`** compares `head:` with `HEAD` before presenting. When commits landed after the save it prints how many and lists up to ten, and puts every Remaining Work item under Verify first. A saved commit that is not in this checkout's history (saved on another branch, rebased, reset, or not fetched) is reported the same way. A malformed `head:` is checked as 40 or 64 hex digits before any git command sees it, `head:` is read from the frontmatter only, and outside git the comparison uses the saved `worktree:` before `project_root:`. Checkpoints saved before this keep their usual sorting with a one-line note.
+
+### Tests
+- `test/context-restore-head.test.ts` runs the real save-path, stamp and head-check blocks from the generated SKILL.md files in fixture repos: unchanged, two commits landed, diverged after a reset, resumed from another branch, a nested linked worktree restored from outside git, a re-stamp after a new commit, pre-tracking, a `head:` that appears only in the body, and a `head: $(touch pwned)` that must never execute.
+
 ## [1.91.223.0] - 2026-10-25
 
 **/plan-tune's inferred profile finally moves: a clicked answer is logged as the question's registered option key, not its label.** #2623 showed every inferred dimension stuck at 0.5 on a 1,286-event log: the AskUserQuestion hook recorded labels like "A) Fix it now (recommended)", while the signal map that turns answers into dimension nudges is keyed by registered option keys like `fix-now`, so 0 of 1,286 answers matched. Now five hook-captured label answers to the registered architecture-finding question move `architecture_care` from 0.5 to 0.632, and `--trace` lists all five.
