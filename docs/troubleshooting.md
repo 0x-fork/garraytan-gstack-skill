@@ -3122,9 +3122,32 @@ reports failures. The obligation stays uncleared. A run URL alone never clears
 this obligation; a `test_backend/<backend>` obligation takes a run URL, recorded
 as attested rather than validated.
 
+Another tree is accepted in exactly one case: it differs from `pregate.json`'s
+tree only in the repo's stamp rule (`.gstack/ship-policy.json` on the base
+branch: `stamp_files`, `stamp_patterns`, the built-in version, manifest,
+lockfile and CHANGELOG forms), judged by the tree receipt's own classifier on a
+`git diff` of the two trees ([the gate ran ahead of the
+stamp](pregate.md#remote-gate-stamp-only)). The refusal line then says `and the
+trees differ beyond the stamp rule of <policy>: <path> (<rule>: <why>, line
+<n>)`, and the path it names is the one that is not a stamp: a file outside
+`stamp_files`, or a stamp file with a hunk that is not the old → new rewrite.
+`the gated tree <t> is not an object in this repository` means the gated
+commit is not fetched here, so the two trees cannot be compared. Three more
+refusals close the substitution without classifying anything: `lists the test
+lane as stamp-sensitive (stamp_sensitive_gates: tests)` (the base policy says
+the test tier reads the stamps, as gstack's own does, so no run on another tree
+covers this one; rerun the gate on the head), `pregate.json was recorded against
+origin/<a>, not this repository's base origin/<b>` (rerun `gstack-pregate --base
+<b>`, or `git remote set-head origin <a>` when `origin/HEAD` was unset), and
+`.gstack/ship-policy.json on origin/<base>@<sha> is invalid` or `could not be
+read` (fix the policy on the base, or fetch it).
+
 **Fix.** Run the remote gate on the tree pregate tested and pass its output
 file with `--receipt`, or let `gstack-pregate --stage tests --remote --spend-cap
-<usd> --allow-repo-commands` run and validate it.
+<usd> --allow-repo-commands` run and validate it. For a gate-ahead receipt:
+fetch the gated commit (`git fetch origin <sha>`) and clear again, or make the
+named path a stamp under the repo's rule; a receipt is never accepted while any
+differing path is a change.
 
 <a id="pregate-no-policy"></a>
 ### `PREGATE_NO_POLICY`
@@ -3190,12 +3213,20 @@ refuses to write the ship receipt otherwise.
 ### `PREGATE_REMOTE_UNCLEARED`
 
 **Meaning.** A `requires-remote` obligation (a platform lane this machine cannot
-run, named by `workflow.yml/job`) has no receipt.
+run, named by `workflow.yml/job`, or the small-machine `pregate.json/remote_gate`
+tier) has no receipt; or a `remote_gate` receipt accepted from a stamp-only
+predecessor tree records `accepted_for` as a tree other than `pregate.json`'s,
+or a `gated_tree` other than its receipt string's `tree=` (the file was edited
+after `clear`), so it clears nothing here.
 
 **Fix.** Dispatch that job, then
 `gstack-pregate clear --remote <workflow.yml/job> --run-url <url>` (or
-`--bundle-lane <label>` from an evidence bundle). The ship receipt carries each
-obligation with its receipt.
+`--bundle-lane <label>` from an evidence bundle). For `pregate.json/remote_gate`,
+`clear --remote pregate.json/remote_gate --receipt <gate output>`: the gate's
+own run on this tree, or a run on a predecessor tree that differs only by the
+repo's stamp rule ([gate ahead of the stamp](pregate.md#remote-gate-stamp-only));
+`verify` then prints the accepted substitution on its ok line. The ship receipt
+carries each obligation with its receipt.
 
 <a id="issue-unreadable"></a>
 ### `ISSUE_UNREADABLE`
