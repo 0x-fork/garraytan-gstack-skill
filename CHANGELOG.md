@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.91.250.0] - 2026-10-26
+
+**Three free-tier fixtures stop racing themselves (GSTA-107 daily flaky pass).** Two tests polled for a result file's existence while its writer created it with a plain `writeFileSync`, so a poll between create and write read an empty file; a third copied a shared template repository with `fs.cpSync` and threw once inside the directory walk.
+
+### Fixed
+- **`browse/test/dotenv-isolation.test.ts`** (Free Tests 39902683183 and 40322888041, shard 2, "JSON Parse error: Unexpected EOF" at the `agent-env.json` read): the probe writes its result to a temp file and renames it into place, and `waitForFile` waits for content, not only for the file. A new test feeds the old race (an empty file filled 150 ms later) and runs the probe source itself.
+- **`test/claude-code-runner.test.ts`** (Free Tests 39694715116, shard 13, `running(pid)` false at the timeout case): the descendant publishes `descendant.pid` by rename, and the test polls `publishedPid()`, a positive integer, instead of the file's existence, so an empty read can no longer become pid 0.
+- **`test/cso-git-hardening.test.ts`** (Free Tests 40288142343, shard 17, `fs.cpSync` threw in `fixture()` with an empty message and passed on the serial retry): every fixture builds its own repository with Git instead of copying a shared template, with auto-maintenance off (`maintenance.auto=false`, `gc.auto=0`) so the detached `git maintenance run` a commit starts no longer touches `.git` while a test walks or removes it; the `beforeAll` still pays the cold macOS Git spawns once, on a throwaway repository. No timeout changed.
+
 ## [1.91.249.0] - 2026-10-26
 
 **Five paid-case flakes from the 2026-10-26 train gates, repaired at their causes (GSTA-107 daily flaky pass).** The "ship-docsync family" was three distinct slips, not one shared cause: a mistyped `--help` path the detector refused although the usage had already been read, an undeclared refusal of gstack's own state directory as an artifact location, and a fixture that did not install the shared preamble a generated skill requires. tpa-present's consent question paraphrased "defer" as "wait for now", and qa-functional-webhook-fix ran the probe's `--help` bare before its first capture.
