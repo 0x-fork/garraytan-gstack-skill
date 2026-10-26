@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.91.247.0] - 2026-10-26
+
+**/plan-eng-review no longer points its reader at three things its own text never defines.** The plan-eng-review sections judge marked down clarity and actionability for these references. All three live in shared resolvers, so the fixes reach every skill that renders them. The Claude Code hook that backs up AskUserQuestion carried the same stale pointer, so it's fixed too:
+
+### Fixed
+- **Claims Need Evidence kernel** (`scripts/resolvers/preamble/generate-evidence-directive.ts`): the evidence-kind bullet ended with "Reuse rules: Step 16." That step exists only in /ship, so in every other skill the pointer led nowhere. It's gone. /ship's Step 16 still states its own reuse rule ("Reuse a check when its inputs match"), and every tier's DONE line still asks you to name reuse.
+- **AskUserQuestion Tool resolution** (`generate-ask-user-format.ts`): "per its Unattended session block" read like a section of the skill, but the block is runtime output. The change removes the dangling pointer from item 1 and from the failure fallback's `unattended` branch. Both keep the destructive/irreversible carve-out the pointer used to supply: item 1 now names destructive or irreversible options among the pending gate items itself, and the fallback branch says a destructive or irreversible option stays pending, as the printed `unattended-session` block does.
+- **AskUserQuestion fallback hook** (`hosts/claude/hooks/auq-error-fallback-hook.ts`): its unattended directive ended with "(Unattended session block; docs/unattended.md names each skill's record)", the same section-style pointer to runtime output. It now ends with "(docs/unattended.md names each skill's record)". The rest of the directive, including which skills print a GSTACK_RESULT line, is unchanged.
+- **Reality rows, eng/ceo branch** (`scripts/resolvers/plan-reality.ts`): the Completion Summary row and plan-eng-review's checklist ask for the `PLAN_REALITY` line, but the operative block never said where that line comes from. It now says `gstack-plan-reality check` prints it.
+
+### Tests
+- `test/honesty-kernel.test.ts` no longer requires the Step 16 pointer. It now rejects any `Step <n>` cross-reference in the kernel, which every skill renders.
+- `test/resolver-ask-user-format.test.ts` checks that item 1 states the unattended pending set with no section or block pointer, in any spelling of the unattended-session block or "per its printed". It also checks that the failure fallback's `unattended` branch keeps destructive or irreversible options pending, and that the hook's unattended directive says the same. `test/gstack-skill-start.test.ts` checks that the block gstack-skill-start actually prints keeps destructive or irreversible options pending for every skill it samples. `test/auq-error-fallback-hook.test.ts` asserts the hook's unattended directive no longer says "Unattended session block".
+- `test/plan-reality.test.ts` checks that the reality-rows block for the eng and ceo phases says its `gstack-plan-reality check` line prints `PLAN_REALITY`.
+- 89 pins in `test/fixtures/skill-md-size-allowlist.json` were moved to their new exact sizes, and every pin went down. 78 went down by 32 characters. The 11 non-Claude plan-eng-review pins went down by 8, because they also inline the 24-character "prints `PLAN_REALITY`" pointer from `review-sections.md`. Both figures already include the destructive/irreversible carve-out that item 1 and the fallback branch keep. The /ship goldens were regenerated.
+
+### Gate integrity
+- No threshold, rubric, trial count, case kind or judge prompt changed. Every size pin went down (78 by 32, 11 by 8); none was raised.
+
 ## [1.91.246.0] - 2026-10-26
 
 **The README is a first-ten-minutes page again: what gstack is, how to install it, the first three skills to try, the skills tables, platform notes, and links to docs/ for everything else.** It was 862 lines and 90 KB, with CSO producer sandboxing, Codex model-selection order and the uninstall script in the path of someone deciding whether to try it. It is now about 300 lines and 33 KB. Nothing was deleted: every removed section moved to a docs/ page, verbatim except the "Proactive skill suggestions" paragraph in docs/why-gstack.md, which now describes the core-set default and `gstack-config set proactive core|all|off` landing in #3432, and every anchor other files link to (`#install--about-30-seconds`, `#gbrain--persistent-knowledge-for-your-coding-agent`) still resolves.
