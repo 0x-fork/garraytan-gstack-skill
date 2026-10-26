@@ -168,6 +168,19 @@ gate: command="<gate_command>" full_e2e=no gate-ahead=none
 SHIP_RECEIPT: pr=42 head=<head12> …
 ```
 
+CI's Version Gate (`scripts/compare-pr-version.ts`) accepts that head as
+unstamped when `VERSION` and `package.json`'s version match its merge base, the
+CHANGELOG change is confined to `[Unreleased]`, and any changed release output
+is byte for byte what `release_tool` generates at the head's merge base
+`VERSION` (the head's own, so a later stamp on main changes nothing), so a
+generator change ships with its regenerated output and the slot's restamp
+regenerates it again. A release output that differs from that (a hand edit, one generated at a
+bumped version, or one the tool never writes), a `VERSION` bump or a
+`package.json` version change classifies the head as stamped, and it must then
+carry base + bump. The tool runs as head code in a throwaway worktree with a
+bare environment and no tokens; one that fails at the head is an error, never
+a pass.
+
 It refuses (`QUEUE_NOT_READY`) when the working tree has tracked edits, HEAD
 is not the PR's pushed head, CI at that exact head is not green, or the pregate
 result is not a current pass, and (`QUEUE_RECEIPT_MISSING`,
