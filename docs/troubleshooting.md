@@ -1741,8 +1741,11 @@ from "the record was lost with the old machine". `render` still prints the secti
 "Record unavailable on this machine" instead of "No approvals recorded". Exit 1.
 
 **Fix.** Run where the record lives, copy the rows back from the thread's report, or make
-the private Drive mirror resolvable (one `~/.capy/drive/project-user-*` folder, or
-`GSTACK_APPROVALS_DIR`).
+a Drive mirror resolvable: `GSTACK_APPROVALS_DIR`, an `approvals/` directory in the one
+mounted Captain drive (`~/.capy/drive/captain-*/approvals`, readable by the whole crew), or one
+`~/.capy/drive/project-user-*` folder. `gstack-approvals path` prints which rule chose the mirror
+and, as `READ_ALSO:`, the other roots it still reads (a row mirrored before the Captain created
+`approvals/` stays visible).
 
 <a id="approval-record-write-failed"></a>
 ### `gstack-approvals: ... (APPROVAL_RECORD_WRITE_FAILED)`
