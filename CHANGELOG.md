@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.91.265.0] - 2026-10-27
+
+**Four more principles, and three places gstack stops asking what it could observe (pstack absorb, lane C3, GSTA-124).** Ideas from Lauren Tan's pstack (MIT), written in gstack's words; NOTICE.md and the ETHOS.md credit line say so.
+
+### Added
+- **ETHOS.md principles 5 to 8**: Attack the Premise (two fixes that share a premise and fail the same gate indict the premise; write it down and falsify it before a third fix), Separate Before Serializing Shared State (a lock is a smell to check; remove the race before refereeing it), Make Operations Idempotent (design for the run that happens twice; ask what happens if the previous run died at every point), Explain the Number (a measurement carries what was measured, the limiter it moved and the run-to-run variation; a gap inside the variation is no difference). "How They Work Together" gains one line each and a Credits section names the source.
+- **`/eval-plan` Step 1c, candidate-side blinding**: three preregistration rules (no eval word anywhere the candidate can read; project-shaped fixture roots; the judge sees `A`/`B` labels and grades chain-following from the files the transcript shows the candidate opened). `prereg --check` does not read fixture trees, and the step says so. `docs/TESTING_INTERNALS.md#candidate-side-blinding` states the same rules for gstack's own fixtures, lists the fixture directory names on the word list and the candidate-visible temporary roots it found (`arm-<fixture>-<arm>-*` from `test/helpers/arm-benchmark-harness.ts`, `skill-e2e-benchmark-*` from `test/skill-e2e-deploy.test.ts`, the `skill-e2e-<id>-*` roots of `test/skill-e2e-test-value.test.ts` whose ids carry `test`, `gstack-health-eval-*` from `test/skill-e2e-health.test.ts`; the list is a scan of `mkdtemp` prefixes in e2e tests, not a proof of completeness); no fixture is renamed here.
+- **Observable questions are not the user's to answer**: a rule in `/plan-tune`'s Important Rules and a section in `docs/proactive.md`. A question a local, read-only, free command, render or measurement can settle is settled that way and reported (a call that changes state, reaches a live or third-party system or spends money stays a question); only product and preference calls reach the user, with the observation already made. The question-log audit treats an observable question as a defect in the asking skill rather than a preference to tune.
+
+### Changed
+- **AGENTS.md validation discipline step 4**: one sentence on measured deltas: name the limiter that moved and the run-to-run variation; a gap smaller than that variation is no difference. `agents-digest/gstack-AGENTS.md` is generated from `scripts/gen-agents-digest.ts` and `VERSION`, not from AGENTS.md, so the regenerated digest is unchanged.
+
+### Gate integrity
+- No threshold, trial count, case kind or judge prompt changed. Prose-only change: `plan-tune` and `eval-plan` are unpinned skills; sizes measured in the PR body.
+
 ## [1.91.264.0] - 2026-10-27
 
 **/design-motion turns an approved design into a showcase loop for X and the website; adapted from Elaya's design-to-motion (GSTA-92 plan item 15, Garry 2026-10-25 "Do it").** gstack could design a screen and build it, but not show it moving: a screen recording drops frames, jumps at the loop seam, and nothing tells you a card drifted out of its container. /design-motion rebuilds the exact frame from a /design-shotgun PNG, a /design-html `finalized.html` or a URL (a Figma link when `FIGMA_TOKEN` is set), loads it from an empty state, gives each visual one story, records frames on a fake clock, and exports only after the loop is proven seamless.
