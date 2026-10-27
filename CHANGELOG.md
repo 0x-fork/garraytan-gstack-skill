@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.91.283.0] - 2026-10-27
+
+**/benchmark's collection, comparison, budget and trend phases now agree with its vet-the-number section.** The 2026-10-27 flaky pass (GSTA-128) read the `benchmark/SKILL.md perf collection` judge's six samples from run 40558235014: every sample named the same contradictions, so the prose was repaired and no threshold moved.
+
+### Fixed
+- **Phase 3 run count**: the script runs 5 times per page and later phases use each metric's median with its range, which is what the mandatory vet section already demanded; the old optional 3-run median contradicted it. `--quick` is the one-run ballpark and produces no comparison verdict.
+- **Phase 5 against a stored baseline**: the baseline ran earlier, so question 5's alternation is unavailable; the comparison uses both sides' `range_ms`, names the limiter from Phase 6, and is inconclusive when either side is one run. A delta smaller than either spread is OK whatever threshold it crosses. The report leads with the verdict and names the run count.
+- **Phase 4 schema** carries `runs` and `range_ms`; **Phase 7**'s grade example counts 3 PASS, 1 WARNING, 2 FAIL (4/6 below budget); **Phase 8** reads the benchmark and baseline JSON files by `timestamp` and says where Bundle and Grade come from; **Phase 9** defines the JSON as the Phase 4 object plus per-page `grade`, `verdict` and metric `status`.
+- Nearby prose tightened so the skeleton stays under its 31,300-byte cap (31,290). Judge after the repair: clarity, completeness and actionability 4/4/4 on all three samples, three runs.
+
 ## [1.91.282.0] - 2026-10-27
 
 **A merge the pre-merge verify accepted no longer freezes the queue, and a slot stamp touches only the stamp files.** Train 24 (2026-10-27) merged #3434 and #3453, then froze on #3453's post-merge check and paid a $31 backstop: the pre-merge verify judged the lane's CHANGELOG as main's plus the pin's own entry and said MERGE_CONDITION, the post-merge check compared main to T2 section by section, and T2's one `[Unreleased]` (both stacked entries) had become two released sections. In both slots `gstack-restamp` also listed `lib/ship-policy.ts` as a fifth stamp file, because the lane's uncommitted base merge made #3511's `DOCS_CAPS_KEY_VERSION` look like the branch's own tentative key. And `mergeChangelogs` refused the stacked child outright, so the lane's hand resolve dropped #3453's two wording fixes to the released 1.91.276.0 entry.
