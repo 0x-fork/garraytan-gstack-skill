@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.91.275.0] - 2026-10-27
+
+### Changed
+- **Policy key versions are stamped, not hand-moved** (`lib/ship-policy.ts`, `.gstack/ship-policy.json`): `DOCS_CAPS_KEY_VERSION` is 1.91.270.0, the release that shipped `docs.caps` (#3487 was written naming 1.91.258.0, which main stamped for another PR; a slot call never permits an edit beyond the four stamp files, so the constant could not move at the slot). gstack's own policy now lists `lib/ship-policy.ts` under `stamp_paths` with the `_KEY_VERSION = '{version}'` template in `stamp_patterns`: a new key's constant is written as a tentative future version clear of main's pace (the next minor) and `gstack-restamp`'s stamp_paths stage moves it to the allocated version at the slot stamp, reading the base branch's policy, so the stage is live for the PRs after this one; the tree receipt's stamp-only check still accepts that move only when the tentative value equals the base version at the slot, so a PR that adds a key cannot clear the train until #3512 lands. `test/gstack-ship-policy.test.ts` adds the check the incident lacked: a released key's version must be a CHANGELOG heading whose entry names the key, so a tentative value no stamp moved fails (keys from before `review_scope` are exempt).
+
 ## [1.91.274.0] - 2026-10-27
 
 **/design-html and /design-review now run the design lint, and its copy tier reports every content and ship-floor tell at its line (hallmark phase 2, GSTA-92; Garry 2026-10-26 "Do it", option a).** The two design skills still called `gstack-design-craft`, which counted tells without positions and kept accepted exceptions in finalized.json. The lint already carried the same ids, so the skills now call it, the copy tier has its own patterns with line numbers, and a page answers a tell with a waiver comment beside it instead of a side record.
