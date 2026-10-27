@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.91.280.0] - 2026-10-27
+
+**Three free-tier tests measured something other than what they assert, and the Ubicloud quota wait shaved its own budget.** The daily flaky pass (GSTA-128) traced the free tier's open timing reds to measurement defects, not product ones: `quota_preflight` in `scripts/ubicloud/ubi-runner.sh` pinned its deadline to the wall clock before the first usage call, so a slow CLI spawn on a loaded runner printed "waiting up to 2s more" where the test expects the full 3 s; the pregate-remote teardown test read the `.down` file as soon as it existed, before the stub's `echo` had written the line; and the design-lint linearity check timed one wall-clock run of the 8000-label lint against a 500 ms floor on a shared runner. Under eight busy loops on four cores the quota case went from 8 of 12 green to 12 of 12. No ms bound, threshold, trial count or retry changed.
+
+### Fixed
+- **`scripts/ubicloud/ubi-runner.sh`**: the quota wait budget is a countdown of the seconds spent sleeping for room. Usage reads between sleeps do not eat it, the first log line names the whole `UBI_QUOTA_WAIT`, `UBI_QUOTA_WAIT=0` still refuses on the first poll, and the wait still releases when usage drops.
+
+### Tests
+- `test/ubicloud-pregate-remote.test.ts` waits for the written teardown line (`exit …` or `term …` ending in a newline), not for the file to exist.
+- `test/design-lint-fifth-cycle.test.ts` measures the lint's own CPU time, fastest of three runs, against the unchanged `max(2.5 × t4000, 500 ms)` bound. A quadratic regression at 8000 labels would still measure about 690 ms CPU, above the floor, so the check keeps catching what it was written for.
+- `test/ubicloud-runner.test.ts` attaches the runner's stderr to the hung-setup watchdog assertion, so the next red of that case names its cause. A new quota case proves the countdown. A usage read that takes 1.2 s keeps the printed 2 s budget (origin/main prints 1 s), a 70 s wait sleeps 30 s twice, and the wait releases when the peer VM disappears.
+
+### Gate integrity
+- Four hunks listed, three read, none a relaxation. The teardown wait is stricter, the watchdog assertion is unchanged with a message added, and the linearity measure keeps its bound (measurement above).
+
 ## [1.91.279.0] - 2026-10-27
 
 **A licence line or a changelog entry no longer buys a full paid gate, the review loop stops re-reporting findings the owners have already ruled below the floor, and three follow-ups from the Blast radius ship land.** #3499: every PR that touched `NOTICE.md`, `LICENSE`, `licenses/` or `ETHOS.md` restored every gate case and judge because no paid case was mapped to them (#3493's docs-only PR planned 82 cases, about $30, for a notice and a changelog entry). #3504 and #3485: the same classes of finding (a schema lagging its writer, a helper nobody calls, a re-dispatch, a refusal one step late) reached the owners again on every ship after being judged below the floor once. GSTA-121's ship left three gaps. The Captain's merge-ask template and `docs/skills.md` lacked the `## Blast radius` item the PR body now carries, an 11-digit GitHub Actions run id after a run word was redacted from an approval record as a phone number, and the remote free gate failed with `PREGATE_REMOTE_INFRA` when a reviewer ran git in the checkout while the gate tarred `.git`.
