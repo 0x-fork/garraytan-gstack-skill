@@ -860,15 +860,18 @@ construction:
    fix-range`) or in the diff is `scope: fix`; nothing below the floor earns a
    pass. `NO FINDINGS` is the expected reviewer result for a clean range, never a
    failed review.
-3. **Three passes is the cap.** A pass that applied no edits continues to Step 10:
-   the loop ships with its deferred and noted items named in the PR body. A
-   blocking finding still in `fix` scope on pass 3 stops the run and names the
-   finding (path, severity, problem) for the owner instead of a fourth pass.
+3. **Two full passes plus one fix-check is the cap**, stepped by the
+   [transition table](review-policy.md#transitions). A pass that applied no edits
+   continues to Step 10: the loop ships with its deferred and noted items named in
+   the PR body. A blocking finding still open after the last allowed step stops
+   the run and names the finding (path, severity, problem) for the owner instead
+   of a third full pass.
 
 `gstack-review-scope summary --since <REVIEW_SINCE>` reads the branch's review-log
 rows for this invocation and writes the counters the ship receipt carries
 (`gstack-ship-receipt write … --review-loop @<file>`): `review_loop: { passes,
-blocking_found, deferred, noted, fixed, scope }`, printed on the receipt summary
+blocking_found, deferred, noted, fixed, scope }`, plus `fix_checks`, `dispatches`
+and `est_input_tokens` when the run recorded them, printed on the receipt summary
 line as `passes=<n> blocking_found=<k> deferred=<m>`, so a scorecard can track
 passes per PR.
 
@@ -933,10 +936,27 @@ A changed product path, or a product patch-id that differs, is
 (exit 3; the refusal names the paths), and a receipt whose head is not in HEAD's
 history (a rebase or force-push) or a working tree with uncommitted changes is
 [`RECEIPT_CARRY_REFUSED`](troubleshooting.md#receipt-carry-refused): run `/ship`
-on the new head. `/ship` Step 1 runs the carry check itself when the branch has
-an open PR, and a `CARRY: carried` result ends that run with the receipt bound
-to HEAD; the queue's `ready`, `train build` and `verify --train` read the
+on the new head. The queue's `ready`, `train build` and `verify --train` read the
 carried receipt like any other.
+
+**Delta /ship: eligibility, then checks, then publication.** `/ship` Step 1 runs
+the carry when the branch has an open PR, in this order, and never reruns the
+review loop for a carried receipt:
+
+1. `gstack-ship-receipt carry --pr <n> --base <base> --dry-run`. `CARRY: would
+   carry` is eligibility only; a refusal continues the full ship.
+2. At that pinned HEAD: the CHANGELOG check, the size-cap check the policy
+   declares, and `gstack-pregate` (the remote tests stage when
+   `requires_remote` asks for it). A failing check, or HEAD moving, continues
+   the full ship from Step 2.
+3. `gstack-ship-receipt carry --pr <n> --base <base> --pregate <pregate.json>`
+   rebinds the receipt with a pregate current for HEAD and ends the run.
+
+A receipt that records a pregate never rebinds without a current one:
+`carry` without `--pregate` (or with a stale one) is
+[`RECEIPT_CARRY_PREGATE_STALE`](troubleshooting.md#receipt-carry-pregate-stale)
+and leaves the body unchanged. A crew that reran the whole `/ship` after every
+base merge should run this sequence instead.
 
 ## What `/land-and-deploy` reads from it
 
