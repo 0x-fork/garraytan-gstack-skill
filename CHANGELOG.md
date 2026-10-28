@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.91.293.0] - 2026-10-28
+
+**`gstack-harness` errors print again, and `register qm` says plainly that QM cannot import gstack yet.** Every refused `gstack-harness` command crashed with `TypeError: e.line is not a function` instead of printing its reason, because Bun gives each thrown error its own numeric `line` property. Harness Evals then found that QM registration never worked: QM imports a skill pack by cloning the whole repository and stops at 32 MiB and 5,000 files, and gstack's repository is about 73 MiB in 4,300 files.
+
+### Fixed
+- **Error lines from `bin/gstack-harness`**: a refused command prints `gstack-harness: <reason>. Fix: <what to do> (<CODE>; docs/troubleshooting.md#<anchor>)` and exits 1, as documented. The printer is now `HarnessError.report()`.
+- **`gstack-harness register qm --yes`** measures the repository at the installed commit first and stops with `HARNESS_QM_PACK_TOO_LARGE` before sending anything to QM. A QM that refuses with its own cap message gets the same code with QM's words, and no blind retry.
+
+### Docs
+- docs/hosts.md lists QM as not available yet, with the paste-in route (`gstack-harness register generic --print`) meanwhile; docs/troubleshooting.md has the `harness-qm-pack-too-large` section.
+
+### Tests
+- `test/harness-register.test.ts`: the CLI error path prints the code and fix with no TypeError; `register qm` against the real checkout refuses with zero requests and no ledger; a QM that answers `pack exceeds max bytes` gets the cap code; the pack reuse and retry case now runs against a small committed repository.
+
 ## [1.91.292.0] - 2026-10-28
 
 **A fix for a regression on stable can skip the 72-hour wait, like a security fix.** Garry, asked whether non-security breakage on stable may bypass the twice-weekly cadence and the floor, answered on 2026-10-28: "Regression". Until now a fix for something the last stable release did right, and the current one breaks, waited up to 72 hours on every team install. Now `--regression "#n: worked in v<X>: why"` with `--ref` passes the floor once the tool ties it to the release, and the claim is public in the tag and the notes.
